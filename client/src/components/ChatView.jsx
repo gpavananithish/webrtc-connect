@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import MessageBubble from './MessageBubble';
 import VoiceRecorder from './VoiceRecorder';
 import { 
-  Phone, Video, Send, Paperclip, Mic, Search, X, Smile, MessageSquare, CheckCheck, ArrowLeft 
+  Phone, Video, Send, Paperclip, Mic, Search, X, Smile, MessageSquare, CheckCheck, ArrowLeft, Plus, UserPlus 
 } from 'lucide-react';
 
 export default function ChatView({ onStartCall, selectedUserId = null }) {
@@ -22,6 +22,10 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [remoteTyping, setRemoteTyping] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearchText, setUserSearchText] = useState('');
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -65,13 +69,31 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
     try {
       const res = await api.getOrCreateDirectConversation(targetId);
       const convs = await api.getConversations();
-      setConversations(convs.conversations || []);
-      const matched = convs.conversations.find(c => c.id === res.conversationId);
+      const updatedList = convs.conversations || [];
+      setConversations(updatedList);
+      const matched = updatedList.find(c => c.id === res.conversationId);
       if (matched) {
         setActiveConversation(matched);
+      } else if (res.conversation) {
+        setActiveConversation(res.conversation);
       }
+      setIsMobileViewingChat(true);
+      setShowNewChatModal(false);
     } catch (err) {
       console.error('Error starting direct chat:', err);
+    }
+  };
+
+  const handleOpenNewChatModal = async () => {
+    setShowNewChatModal(true);
+    setLoadingUsers(true);
+    try {
+      const res = await api.getUsers();
+      setAllUsers(res.users || []);
+    } catch (err) {
+      console.error('Failed to fetch user directory for new chat:', err);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -433,8 +455,34 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
           flexShrink: 0
         }}
       >
-        {/* Search Input */}
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
+        {/* Header with Title and "New Chat" Button */}
+        <div style={{
+          padding: '16px 16px 12px 16px',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+              Chats
+            </h2>
+            <button
+              onClick={handleOpenNewChatModal}
+              className="btn btn-primary"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                gap: '6px',
+                borderRadius: 'var(--radius-full)'
+              }}
+              title="Start a new chat with any team member"
+            >
+              <UserPlus size={15} />
+              <span>New Chat</span>
+            </button>
+          </div>
+
           <div style={{ position: 'relative' }}>
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
             <input
@@ -543,25 +591,28 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
         >
           {/* Conversation Header */}
           <div style={{
-            padding: '12px 18px',
+            padding: '10px 14px',
             background: 'var(--bg-secondary)',
             borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            zIndex: 10,
+            gap: '8px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Mobile Back Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              {/* Mobile Back Button (Only visible on mobile screens) */}
               <button
                 onClick={() => setIsMobileViewingChat(false)}
-                className="btn btn-secondary btn-icon"
-                style={{ width: '36px', height: '36px', display: 'flex' }}
+                className="btn btn-secondary btn-icon desktop-hide"
+                style={{ width: '34px', height: '34px', flexShrink: 0 }}
                 title="Back to conversation list"
               >
                 <ArrowLeft size={18} />
               </button>
 
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
                 <img
                   src={targetParticipant?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(activeConversation.name)}`}
                   alt={activeConversation.name}
@@ -573,11 +624,11 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
                 />
               </div>
 
-              <div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                   {activeConversation.name}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: isTargetOnline ? 'var(--status-online)' : 'var(--text-muted)' }}>
+                <div style={{ fontSize: '0.7rem', color: isTargetOnline ? 'var(--status-online)' : 'var(--text-muted)' }}>
                   {isTargetOnline ? 'Active Now' : 'Offline'}
                 </div>
               </div>
@@ -585,11 +636,11 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
 
             {/* Quick Call Action Buttons */}
             {targetParticipant && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <button
                   onClick={() => onStartCall(targetParticipant, 'audio')}
                   className="btn btn-secondary"
-                  style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+                  style={{ padding: '7px 10px', fontSize: '0.8rem' }}
                   title="Start Real-Time Audio Call"
                 >
                   <Phone size={15} color="var(--accent-cyan)" />
@@ -750,8 +801,159 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-          Select a conversation or start one from Contacts.
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '14px', padding: '24px' }}>
+          <MessageSquare size={48} color="var(--border-medium)" />
+          <div style={{ fontSize: '1rem', fontWeight: 600 }}>Select a conversation or start a new chat</div>
+          <button
+            onClick={handleOpenNewChatModal}
+            className="btn btn-primary"
+            style={{ borderRadius: 'var(--radius-full)', padding: '8px 18px' }}
+          >
+            <UserPlus size={16} />
+            <span>Start New Chat</span>
+          </button>
+        </div>
+      )}
+
+      {/* New Chat User Selection Modal */}
+      {showNewChatModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '440px',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-medium)',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <UserPlus size={20} color="var(--accent-cyan)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  New Chat
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="btn btn-secondary btn-icon"
+                style={{ width: '32px', height: '32px' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Search */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Search team member name or email..."
+                  value={userSearchText}
+                  onChange={(e) => setUserSearchText(e.target.value)}
+                  style={{ paddingLeft: '36px', fontSize: '0.88rem', paddingBottom: '8px', paddingTop: '8px' }}
+                />
+              </div>
+            </div>
+
+            {/* Users List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+              {loadingUsers ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                  Loading team directory...
+                </div>
+              ) : (
+                (() => {
+                  const filtered = allUsers.filter(u => 
+                    u.displayName?.toLowerCase().includes(userSearchText.toLowerCase()) ||
+                    u.email?.toLowerCase().includes(userSearchText.toLowerCase())
+                  );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                        No team members found.
+                      </div>
+                    );
+                  }
+
+                  return filtered.map(u => {
+                    const isOnline = onlineUserIds.has(u.id);
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => handleSelectUser(u.id)}
+                        className="item-card-hover"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          marginBottom: '4px',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <img
+                            src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(u.displayName || 'User')}`}
+                            alt={u.displayName}
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                          <span
+                            className={`status-dot ${isOnline ? 'online' : 'offline'}`}
+                            style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid var(--bg-secondary)' }}
+                          />
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.displayName}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.title || 'Developer'} • {isOnline ? 'Online' : 'Offline'}
+                          </div>
+                        </div>
+
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: 'var(--radius-full)' }}
+                        >
+                          Chat
+                        </button>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -55,11 +55,12 @@ html, body, #root {
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column-reverse;
+    height: 100dvh;
   }
 
   .main-content {
-    height: calc(100vh - 62px);
-    overflow-y: auto;
+    height: calc(100dvh - 62px);
+    overflow: hidden;
   }
 
   .mobile-bottom-bar {
@@ -68,6 +69,10 @@ html, body, #root {
 
   .mobile-hide {
     display: none !important;
+  }
+
+  .mobile-flex {
+    display: flex !important;
   }
 
   .mobile-full {
@@ -81,6 +86,12 @@ html, body, #root {
 
   .responsive-grid-1col {
     grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hide {
+    display: none !important;
   }
 }
 
