@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { 
-  User, Mic, Video, Volume2, Globe, Shield, Check, RefreshCw 
+  User, Mic, Video, Volume2, Globe, Shield, Check, RefreshCw, LogOut 
 } from 'lucide-react';
 
 export default function SettingsView() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [title, setTitle] = useState(user?.title || '');
@@ -525,6 +525,31 @@ export default function SettingsView() {
                 All connections utilize native WebRTC <code style={{ color: 'var(--accent-cyan)' }}>RTCPeerConnection</code>. STUN is used for public reflexive IP discovery. TURN servers can be configured in <code style={{ color: 'var(--text-primary)' }}>server/.env</code> using Coturn for symmetric NAT traversal.
               </p>
             </div>
+          </div>
+
+          {/* Section 4: Account Actions & Logout */}
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
+              <LogOut size={18} color="#ef4444" />
+              <span>Account & Session</span>
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Signed in as <strong style={{ color: 'var(--text-primary)' }}>{user?.displayName}</strong> ({user?.email})
+            </p>
+            <button
+              onClick={logout}
+              className="btn btn-danger"
+              style={{
+                padding: '10px 20px',
+                fontSize: '0.9rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <LogOut size={16} />
+              <span>Sign Out of Account</span>
+            </button>
           </div>
         </div>
       </div>

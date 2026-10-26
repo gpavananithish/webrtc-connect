@@ -409,6 +409,29 @@ export default function Sidebar({ activeTab, setActiveTab, unreadTotal = 0 }) {
             {isDark ? 'Dark' : 'Light'}
           </span>
         </button>
+
+        {/* Mobile Logout Button */}
+        <button
+          onClick={logout}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            color: '#ef4444',
+            padding: '6px 4px',
+            cursor: 'pointer',
+            flex: 1
+          }}
+          title="Log Out"
+        >
+          <LogOut size={19} color="#ef4444" />
+          <span style={{ fontSize: '0.65rem', fontWeight: 500, marginTop: '2px' }}>
+            Logout
+          </span>
+        </button>
       </div>
     </div>
   </>
