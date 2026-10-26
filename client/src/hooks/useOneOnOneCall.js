@@ -17,6 +17,7 @@ export function useOneOnOneCall() {
   const [callDuration, setCallDuration] = useState(0);
 
   const [localStream, setLocalStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
@@ -218,6 +219,7 @@ export function useOneOnOneCall() {
     if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
 
     setLocalStream(null);
+    setScreenStream(null);
     setRemoteStream(null);
     setCallState('idle');
     setRemoteUser(null);
@@ -251,30 +253,58 @@ export function useOneOnOneCall() {
 
   // Screen Sharing
   const toggleScreenShare = useCallback(async () => {
-    if (!pcRef.current || callState !== 'connected') return;
+    if (!pcRef.current || callState !== 'connected') {
+      alert('You must be in an active, connected call to share your screen.');
+      return;
+    }
 
     if (!isScreenSharing) {
-      try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
-        screenStreamRef.current = screenStream;
-        const screenTrack = screenStream.getVideoTracks()[0];
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        alert('Screen sharing is not supported by your current browser or mobile platform. Please use Chrome, Edge, or Safari on Desktop.');
+        return;
+      }
 
-        // Find current video sender
-        const videoSender = pcRef.current.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (videoSender) {
+      try {
+        let stream = null;
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              cursor: 'always'
+            },
+            audio: false // audio: true can fail on certain OS/browsers if system audio capture is not supported
+          });
+        } catch (initialErr) {
+          // Fallback with basic true constraint
+          console.warn('Initial getDisplayMedia failed, trying fallback video: true:', initialErr);
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        }
+
+        screenStreamRef.current = stream;
+        setScreenStream(stream);
+        const screenTrack = stream.getVideoTracks()[0];
+
+        // Find or replace current video sender
+        let videoSender = pcRef.current.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (!videoSender) {
+          // If in an audio call without initial video track, find any video sender without track or addTrack
+          videoSender = pcRef.current.getSenders().find(s => s.kind === 'video');
+          if (videoSender) {
+            await videoSender.replaceTrack(screenTrack);
+          } else {
+            pcRef.current.addTrack(screenTrack, stream);
+          }
+        } else {
           originalVideoTrackRef.current = videoSender.track;
           await videoSender.replaceTrack(screenTrack);
         }
 
-        // When user stops sharing from browser toolbar
+        // When user stops sharing from browser floating native toolbar
         screenTrack.onended = async () => {
           if (videoSender && originalVideoTrackRef.current) {
             await videoSender.replaceTrack(originalVideoTrackRef.current);
           }
           setIsScreenSharing(false);
+          setScreenStream(null);
           sendSignaling('call-screen-share', {
             callId,
             targetUserId: remoteUser?.id,
@@ -290,6 +320,9 @@ export function useOneOnOneCall() {
         });
       } catch (err) {
         console.warn('Screen sharing cancelled or failed:', err);
+        if (err.name !== 'NotAllowedError') {
+          alert(`Could not start screen share: ${err.message || 'Permission denied or not supported'}`);
+        }
       }
     } else {
       // Stop screen share and restore camera
@@ -297,6 +330,8 @@ export function useOneOnOneCall() {
         screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
       }
+      setScreenStream(null);
+
       const videoSender = pcRef.current.getSenders().find(s => s.track && s.track.kind === 'video');
       if (videoSender && originalVideoTrackRef.current) {
         await videoSender.replaceTrack(originalVideoTrackRef.current);
@@ -458,6 +493,7 @@ export function useOneOnOneCall() {
     callId,
     callDuration,
     localStream,
+    screenStream,
     remoteStream,
     isAudioMuted,
     isVideoMuted,

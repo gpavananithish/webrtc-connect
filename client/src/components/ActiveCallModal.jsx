@@ -11,6 +11,7 @@ export default function ActiveCallModal({ callHook }) {
     remoteUser,
     callDuration,
     localStream,
+    screenStream,
     remoteStream,
     isAudioMuted,
     isVideoMuted,
@@ -23,6 +24,7 @@ export default function ActiveCallModal({ callHook }) {
   } = callHook;
 
   const localVideoRef = useRef(null);
+  const localScreenRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
   // Attach local stream
@@ -31,6 +33,13 @@ export default function ActiveCallModal({ callHook }) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
+
+  // Attach local screen share stream if local user is sharing
+  useEffect(() => {
+    if (localScreenRef.current && screenStream) {
+      localScreenRef.current.srcObject = screenStream;
+    }
+  }, [screenStream]);
 
   // Attach remote stream & apply preferred speaker output if supported
   useEffect(() => {
@@ -156,8 +165,35 @@ export default function ActiveCallModal({ callHook }) {
           style={{ display: 'none' }}
         />
 
-        {/* Remote Video or Screen Share - Uses contain for screens, cover for camera */}
-        {remoteStream && !isAudioOnly ? (
+        {/* Screen Share / Video Area: Prioritizes screen share if active */}
+        {isScreenSharing && screenStream ? (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#000000',
+            overflow: 'hidden'
+          }}>
+            <video
+              ref={localScreenRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                maxWidth: '100vw',
+                maxHeight: '100dvh',
+                objectFit: 'contain',
+                background: '#000000'
+              }}
+            />
+          </div>
+        ) : remoteStream && !isAudioOnly ? (
           <div style={{
             position: 'absolute',
             inset: 0,
