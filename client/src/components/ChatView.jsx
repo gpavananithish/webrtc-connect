@@ -150,9 +150,19 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
     };
   }, [activeConversation]);
 
-  // Scroll to bottom on new messages
+  const messagesContainerRef = useRef(null);
+  const prevMessagesLengthRef = useRef(0);
+
+  // Scroll to bottom only when NEW messages are added or user typing changes, not when deleting messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const isNewMessageAdded = messages.length > prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+
+    if (isNewMessageAdded || remoteTyping) {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }
   }, [messages, remoteTyping]);
 
   // Setup WebSocket Listeners for Chat
@@ -661,7 +671,17 @@ export default function ChatView({ onStartCall, selectedUserId = null }) {
           </div>
 
           {/* Messages Area */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+          <div 
+            ref={messagesContainerRef}
+            style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              padding: '20px', 
+              display: 'flex', 
+              flexDirection: 'column',
+              overscrollBehavior: 'contain'
+            }}
+          >
             {messages.length === 0 ? (
               <div style={{
                 margin: 'auto',

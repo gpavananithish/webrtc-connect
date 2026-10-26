@@ -158,19 +158,31 @@ export default function ActiveCallModal({ callHook }) {
 
         {/* Remote Video or Screen Share - Uses contain for screens, cover for camera */}
         {remoteStream && !isAudioOnly ? (
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{
-              width: '100%',
-              height: '100%',
-              maxWidth: '100vw',
-              maxHeight: '100dvh',
-              objectFit: isAnyScreenSharing ? 'contain' : 'cover',
-              background: '#000000'
-            }}
-          />
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#000000',
+            overflow: 'hidden'
+          }}>
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              style={{
+                width: '100%',
+                height: '100%',
+                maxWidth: '100vw',
+                maxHeight: '100dvh',
+                objectFit: isAnyScreenSharing ? 'contain' : 'cover',
+                background: '#000000'
+              }}
+            />
+          </div>
         ) : (
           <div style={{ textAlign: 'center', zIndex: 10 }}>
             <div style={{ position: 'relative', display: 'inline-block', marginBottom: '24px' }}>
