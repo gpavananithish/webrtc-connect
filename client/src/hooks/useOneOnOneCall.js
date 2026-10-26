@@ -21,6 +21,7 @@ export function useOneOnOneCall() {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [networkQuality, setNetworkQuality] = useState('good'); // 'good' | 'fair' | 'poor'
 
   const pcRef = useRef(null);
@@ -274,9 +275,19 @@ export function useOneOnOneCall() {
             await videoSender.replaceTrack(originalVideoTrackRef.current);
           }
           setIsScreenSharing(false);
+          sendSignaling('call-screen-share', {
+            callId,
+            targetUserId: remoteUser?.id,
+            isSharing: false
+          });
         };
 
         setIsScreenSharing(true);
+        sendSignaling('call-screen-share', {
+          callId,
+          targetUserId: remoteUser?.id,
+          isSharing: true
+        });
       } catch (err) {
         console.warn('Screen sharing cancelled or failed:', err);
       }
@@ -291,8 +302,13 @@ export function useOneOnOneCall() {
         await videoSender.replaceTrack(originalVideoTrackRef.current);
       }
       setIsScreenSharing(false);
+      sendSignaling('call-screen-share', {
+        callId,
+        targetUserId: remoteUser?.id,
+        isSharing: false
+      });
     }
-  }, [callState, isScreenSharing]);
+  }, [callState, isScreenSharing, callId, remoteUser, sendSignaling]);
 
   // Setup Signaling Listeners for 1-on-1 call
   useEffect(() => {
@@ -364,6 +380,10 @@ export function useOneOnOneCall() {
       }
     });
 
+    const unsubScreenShare = on('call-screen-share', (payload) => {
+      setIsRemoteScreenSharing(!!payload.isSharing);
+    });
+
     const unsubRejected = on('call-rejected', (payload) => {
       soundService.stopRingback();
       soundService.playCallEnded();
@@ -380,6 +400,7 @@ export function useOneOnOneCall() {
       unsubOffer();
       unsubAnswer();
       unsubIce();
+      unsubScreenShare();
       unsubRejected();
       unsubEnded();
     };
@@ -441,6 +462,7 @@ export function useOneOnOneCall() {
     isAudioMuted,
     isVideoMuted,
     isScreenSharing,
+    isRemoteScreenSharing,
     networkQuality,
     startCall,
     answerCall,

@@ -252,6 +252,17 @@ function setupSignalingServer(httpServer) {
           break;
         }
 
+        case 'call-screen-share': {
+          if (!currentSocketUser) return;
+          const { callId, targetUserId, isSharing } = payload;
+          sendToUser(targetUserId, 'call-screen-share', {
+            callId,
+            isSharing,
+            senderUserId: currentSocketUser.userId
+          });
+          break;
+        }
+
         case 'call-end': {
           if (!currentSocketUser) return;
           const { callId, targetUserId, durationSeconds = 0, callType = 'audio' } = payload;

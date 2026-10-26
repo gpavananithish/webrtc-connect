@@ -55,7 +55,8 @@ export default function ActiveCallModal({ callHook }) {
     return `${m}:${s}`;
   };
 
-  const isAudioOnly = callType === 'audio' && !isScreenSharing;
+  const isAnyScreenSharing = isScreenSharing || callHook.isRemoteScreenSharing;
+  const isAudioOnly = callType === 'audio' && !isAnyScreenSharing;
 
   return (
     <div style={{
@@ -63,43 +64,45 @@ export default function ActiveCallModal({ callHook }) {
       top: 0,
       left: 0,
       width: '100vw',
-      height: '100vh',
-      background: '#070b14',
+      height: '100dvh',
+      background: '#040711',
       zIndex: 9999,
       display: 'flex',
       flexDirection: 'column',
-      userSelect: 'none'
+      userSelect: 'none',
+      overflow: 'hidden'
     }}>
-      {/* Top Header Bar */}
+      {/* Top Header Bar - Minimal during screen share so shared content gets full height */}
       <div style={{
-        padding: '16px 24px',
+        padding: isAnyScreenSharing ? '8px 16px' : '12px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'linear-gradient(to bottom, rgba(7, 11, 20, 0.95), rgba(7, 11, 20, 0))',
+        background: 'linear-gradient(to bottom, rgba(4, 7, 17, 0.95), rgba(4, 7, 17, 0))',
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 20
+        zIndex: 20,
+        pointerEvents: 'none'
       }}>
         {/* Remote User details */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
           <img
             src={remoteUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(remoteUser?.displayName || 'User')}`}
             alt={remoteUser?.displayName}
-            style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-medium)' }}
+            style={{ width: isAnyScreenSharing ? '32px' : '38px', height: isAnyScreenSharing ? '32px' : '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-medium)' }}
           />
           <div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff' }}>
-              {remoteUser?.displayName}
+            <div style={{ fontSize: isAnyScreenSharing ? '0.9rem' : '1rem', fontWeight: 700, color: '#ffffff' }}>
+              {remoteUser?.displayName} {isAnyScreenSharing && <span style={{ color: 'var(--accent-cyan)', fontSize: '0.75rem', fontWeight: 600 }}>• Sharing Screen</span>}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {callState === 'calling' ? 'Calling...' : callState === 'connecting' ? 'Connecting P2P...' : formatTime(callDuration)}
               </span>
               {callState === 'connected' && (
-                <span className="badge badge-cyan" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
+                <span className="badge badge-cyan" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
                   Native P2P
                 </span>
               )}
@@ -113,23 +116,26 @@ export default function ActiveCallModal({ callHook }) {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '6px 12px',
+            padding: '4px 10px',
             borderRadius: 'var(--radius-full)',
             background: 'rgba(15, 23, 42, 0.75)',
             border: '1px solid var(--border-subtle)',
-            backdropFilter: 'blur(8px)'
+            backdropFilter: 'blur(8px)',
+            pointerEvents: 'auto'
           }}>
-            <Signal size={14} color={networkQuality === 'good' ? '#10b981' : networkQuality === 'fair' ? '#f59e0b' : '#ef4444'} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', textTransform: 'capitalize' }}>
-              {networkQuality} connection
+            <Signal size={13} color={networkQuality === 'good' ? '#10b981' : networkQuality === 'fair' ? '#f59e0b' : '#ef4444'} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#cbd5e1', textTransform: 'capitalize' }}>
+              {networkQuality}
             </span>
           </div>
         )}
       </div>
 
-      {/* Main View Area */}
+      {/* Main View Area - Optimized for maximum viewport utilization */}
       <div style={{
         flex: 1,
+        width: '100%',
+        height: '100%',
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
@@ -137,7 +143,7 @@ export default function ActiveCallModal({ callHook }) {
         background: '#040711',
         overflow: 'hidden'
       }}>
-        {/* Dedicated Remote Audio Player (ALWAYS active to guarantee audio plays during audio calls and video calls) */}
+        {/* Dedicated Remote Audio Player */}
         <audio
           ref={(el) => {
             if (el && remoteStream && el.srcObject !== remoteStream) {
@@ -150,7 +156,7 @@ export default function ActiveCallModal({ callHook }) {
           style={{ display: 'none' }}
         />
 
-        {/* Remote Video or Audio Avatar */}
+        {/* Remote Video or Screen Share - Uses contain for screens, cover for camera */}
         {remoteStream && !isAudioOnly ? (
           <video
             ref={remoteVideoRef}
@@ -159,7 +165,10 @@ export default function ActiveCallModal({ callHook }) {
             style={{
               width: '100%',
               height: '100%',
-              objectFit: isScreenSharing ? 'contain' : 'cover'
+              maxWidth: '100vw',
+              maxHeight: '100dvh',
+              objectFit: isAnyScreenSharing ? 'contain' : 'cover',
+              background: '#000000'
             }}
           />
         ) : (
@@ -224,14 +233,14 @@ export default function ActiveCallModal({ callHook }) {
         {localStream && !isAudioOnly && (
           <div style={{
             position: 'absolute',
-            bottom: '90px',
-            right: '16px',
-            width: 'min(180px, 40vw)',
-            height: 'min(120px, 28vw)',
+            bottom: isAnyScreenSharing ? '80px' : '90px',
+            right: '12px',
+            width: isAnyScreenSharing ? 'min(130px, 30vw)' : 'min(180px, 40vw)',
+            height: isAnyScreenSharing ? 'min(90px, 20vw)' : 'min(120px, 28vw)',
             borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
             border: '2px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.7)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8)',
             background: '#0f172a',
             zIndex: 30
           }}>
