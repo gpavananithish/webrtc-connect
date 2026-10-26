@@ -302,9 +302,10 @@ body {
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9rem;
+  font-size: 1rem; /* 16px prevents iOS/Android auto-zoom on focus */
   transition: all 0.2s ease;
   outline: none;
+  box-sizing: border-box;
 }
 .input-field:focus {
   border-color: var(--accent-cyan);

@@ -91,15 +91,22 @@ export function useOneOnOneCall() {
     const savedMic = localStorage.getItem('connect_preferred_mic');
     const savedCam = localStorage.getItem('connect_preferred_cam');
 
+    const audioConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      ...(savedMic ? { deviceId: { ideal: savedMic } } : {})
+    };
+
     const constraints = {
-      audio: savedMic ? { deviceId: { ideal: savedMic } } : true,
+      audio: audioConstraints,
       video: type === 'video' ? (savedCam ? { deviceId: { ideal: savedCam } } : true) : false
     };
 
     try {
       return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (err) {
-      console.warn('Exact/ideal device constraints failed, falling back to default media:', err);
+      console.warn('Exact/ideal device constraints failed, falling back to basic audio/video:', err);
       // Fallback to basic audio/video
       return await navigator.mediaDevices.getUserMedia({
         audio: true,

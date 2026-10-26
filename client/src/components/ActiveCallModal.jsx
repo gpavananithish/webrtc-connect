@@ -137,6 +137,19 @@ export default function ActiveCallModal({ callHook }) {
         background: '#040711',
         overflow: 'hidden'
       }}>
+        {/* Dedicated Remote Audio Player (ALWAYS active to guarantee audio plays during audio calls and video calls) */}
+        <audio
+          ref={(el) => {
+            if (el && remoteStream && el.srcObject !== remoteStream) {
+              el.srcObject = remoteStream;
+              el.play().catch(e => console.warn('Audio auto-play prevented, waiting for interaction:', e));
+            }
+          }}
+          autoPlay
+          playsInline
+          style={{ display: 'none' }}
+        />
+
         {/* Remote Video or Audio Avatar */}
         {remoteStream && !isAudioOnly ? (
           <video
