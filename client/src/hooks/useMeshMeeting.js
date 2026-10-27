@@ -8,7 +8,7 @@ const DEFAULT_ICE_SERVERS = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
 ];
 
-export function useMeshMeeting(meetingCode, onMeetingEnded) {
+export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
   const { user } = useAuth();
   const { sendSignaling, on } = useSignaling();
 
@@ -17,6 +17,17 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
   const [participants, setParticipants] = useState([]); // Array of user objects
   const [remoteStreams, setRemoteStreams] = useState({}); // userId -> MediaStream
   const [localStream, setLocalStream] = useState(null);
+
+  // Active meeting room code reference to always be in sync across closures & callbacks
+  const currentRoomCodeRef = useRef(initialMeetingCode ? initialMeetingCode.trim().toLowerCase() : null);
+  const localStreamRef = useRef(null);
+
+  // Keep currentRoomCodeRef in sync when initialMeetingCode changes from parent
+  useEffect(() => {
+    if (initialMeetingCode) {
+      currentRoomCodeRef.current = initialMeetingCode.trim().toLowerCase();
+    }
+  }, [initialMeetingCode]);
 
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
@@ -105,8 +116,12 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
   // Create RTCPeerConnection for a remote peer in mesh
   const createPeerConnection = useCallback((remoteUserId, currentLocalStream) => {
     if (peersRef.current.has(remoteUserId)) {
-      peersRef.current.get(remoteUserId).close();
+      try {
+        peersRef.current.get(remoteUserId).close();
+      } catch (e) {}
     }
+
+    const effectiveStream = currentLocalStream || localStreamRef.current;
 
     const pc = new RTCPeerConnection({
       iceServers: iceServersRef.current
@@ -115,16 +130,16 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     candidateQueuesRef.current.set(remoteUserId, []);
 
     // Send local tracks
-    if (currentLocalStream) {
-      currentLocalStream.getTracks().forEach(track => {
-        pc.addTrack(track, currentLocalStream);
+    if (effectiveStream) {
+      effectiveStream.getTracks().forEach(track => {
+        pc.addTrack(track, effectiveStream);
       });
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
+      if (event.candidate && currentRoomCodeRef.current) {
         sendSignaling('meeting-ice-candidate', {
-          meetingCode,
+          meetingCode: currentRoomCodeRef.current,
           targetUserId: remoteUserId,
           candidate: event.candidate
         });
@@ -143,13 +158,16 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     };
 
     return pc;
-  }, [meetingCode, sendSignaling, setupAudioAnalyzer]);
+  }, [sendSignaling, setupAudioAnalyzer]);
 
   // Join meeting room
   const joinMeeting = useCallback(async (code, userInfo, password = null, initialMediaOptions = { audioEnabled: true, videoEnabled: true }) => {
     try {
+      const cleanCode = (code || '').trim().toLowerCase();
+      currentRoomCodeRef.current = cleanCode;
+
       // Validate with backend first
-      const valRes = await api.validateMeeting(code, password);
+      const valRes = await api.validateMeeting(cleanCode, password);
       setMeetingDetails(valRes.meeting);
 
       // Acquire local media with preferred devices and mobile fallback
@@ -196,19 +214,20 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
         setIsVideoMuted(false);
       }
 
+      localStreamRef.current = stream;
       setLocalStream(stream);
       setupAudioAnalyzer(user.id, stream);
 
       // Send join signal to room with customized user display name if provided
       const finalUserInfo = userInfo ? { ...user, ...userInfo } : user;
       sendSignaling('join-meeting', {
-        meetingCode: code,
+        meetingCode: cleanCode,
         userInfo: finalUserInfo
       });
 
       // Send initial track state
       sendSignaling('meeting-track-state', {
-        meetingCode: code,
+        meetingCode: cleanCode,
         audioMuted: initialMediaOptions.audioEnabled === false,
         videoMuted: initialMediaOptions.videoEnabled === false,
         isScreenSharing: false
@@ -225,7 +244,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
   // Internal helper to tear down peers and local tracks
   const cleanupMeetingResources = useCallback(() => {
     for (const [pId, pc] of peersRef.current.entries()) {
-      pc.close();
+      try { pc.close(); } catch (e) {}
     }
     peersRef.current.clear();
     candidateQueuesRef.current.clear();
@@ -236,8 +255,9 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       audioContextRef.current = null;
     }
 
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
     }
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(t => t.stop());
@@ -253,53 +273,65 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     setInMeetingMessages([]);
 
     if (onMeetingEnded) onMeetingEnded();
-  }, [localStream, onMeetingEnded]);
+  }, [onMeetingEnded]);
 
   // Leave meeting room (for individual participant)
   const leaveMeeting = useCallback(() => {
-    sendSignaling('leave-meeting', { meetingCode });
+    const code = currentRoomCodeRef.current;
+    if (code) {
+      sendSignaling('leave-meeting', { meetingCode: code });
+    }
     cleanupMeetingResources();
-  }, [cleanupMeetingResources, meetingCode, sendSignaling]);
+  }, [cleanupMeetingResources, sendSignaling]);
 
   // Host ends meeting for everyone in the room (Zoom style)
   const endMeetingForEveryone = useCallback(() => {
-    sendSignaling('end-meeting-all', { meetingCode });
+    const code = currentRoomCodeRef.current;
+    if (code) {
+      sendSignaling('end-meeting-all', { meetingCode: code });
+    }
     cleanupMeetingResources();
-  }, [cleanupMeetingResources, meetingCode, sendSignaling]);
+  }, [cleanupMeetingResources, sendSignaling]);
 
   // Toggle local audio mute
   const toggleAudio = useCallback(() => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
+    const stream = localStreamRef.current;
+    if (stream) {
+      const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsAudioMuted(!audioTrack.enabled);
-        sendSignaling('meeting-track-state', {
-          meetingCode,
-          audioMuted: !audioTrack.enabled,
-          videoMuted: isVideoMuted,
-          isScreenSharing
-        });
+        if (currentRoomCodeRef.current) {
+          sendSignaling('meeting-track-state', {
+            meetingCode: currentRoomCodeRef.current,
+            audioMuted: !audioTrack.enabled,
+            videoMuted: isVideoMuted,
+            isScreenSharing
+          });
+        }
       }
     }
-  }, [localStream, meetingCode, isVideoMuted, isScreenSharing, sendSignaling]);
+  }, [isVideoMuted, isScreenSharing, sendSignaling]);
 
   // Toggle local video mute
   const toggleVideo = useCallback(() => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
+    const stream = localStreamRef.current;
+    if (stream) {
+      const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoMuted(!videoTrack.enabled);
-        sendSignaling('meeting-track-state', {
-          meetingCode,
-          audioMuted: isAudioMuted,
-          videoMuted: !videoTrack.enabled,
-          isScreenSharing
-        });
+        if (currentRoomCodeRef.current) {
+          sendSignaling('meeting-track-state', {
+            meetingCode: currentRoomCodeRef.current,
+            audioMuted: isAudioMuted,
+            videoMuted: !videoTrack.enabled,
+            isScreenSharing
+          });
+        }
       }
     }
-  }, [localStream, meetingCode, isAudioMuted, isScreenSharing, sendSignaling]);
+  }, [isAudioMuted, isScreenSharing, sendSignaling]);
 
   const [screenStream, setScreenStream] = useState(null);
 
@@ -326,9 +358,8 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
           if (videoSender) {
             originalVideoTrackRef.current = videoSender.track;
             await videoSender.replaceTrack(screenTrack);
-          } else if (localStream) {
-            // If peer connection had no video sender
-            pc.addTrack(screenTrack, localStream);
+          } else if (localStreamRef.current) {
+            pc.addTrack(screenTrack, localStreamRef.current);
           }
         }
 
@@ -345,21 +376,25 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
           }
           setScreenStream(null);
           setIsScreenSharing(false);
-          sendSignaling('meeting-track-state', {
-            meetingCode,
-            audioMuted: isAudioMuted,
-            videoMuted: isVideoMuted,
-            isScreenSharing: false
-          });
+          if (currentRoomCodeRef.current) {
+            sendSignaling('meeting-track-state', {
+              meetingCode: currentRoomCodeRef.current,
+              audioMuted: isAudioMuted,
+              videoMuted: isVideoMuted,
+              isScreenSharing: false
+            });
+          }
         };
 
         setIsScreenSharing(true);
-        sendSignaling('meeting-track-state', {
-          meetingCode,
-          audioMuted: isAudioMuted,
-          videoMuted: isVideoMuted,
-          isScreenSharing: true
-        });
+        if (currentRoomCodeRef.current) {
+          sendSignaling('meeting-track-state', {
+            meetingCode: currentRoomCodeRef.current,
+            audioMuted: isAudioMuted,
+            videoMuted: isVideoMuted,
+            isScreenSharing: true
+          });
+        }
       } catch (err) {
         console.warn('Screen share cancelled or failed:', err);
       }
@@ -376,35 +411,39 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
         }
       }
       setIsScreenSharing(false);
-      sendSignaling('meeting-track-state', {
-        meetingCode,
-        audioMuted: isAudioMuted,
-        videoMuted: isVideoMuted,
-        isScreenSharing: false
-      });
+      if (currentRoomCodeRef.current) {
+        sendSignaling('meeting-track-state', {
+          meetingCode: currentRoomCodeRef.current,
+          audioMuted: isAudioMuted,
+          videoMuted: isVideoMuted,
+          isScreenSharing: false
+        });
+      }
     }
-  }, [inMeeting, isScreenSharing, isAudioMuted, isVideoMuted, meetingCode, sendSignaling, localStream]);
+  }, [inMeeting, isScreenSharing, isAudioMuted, isVideoMuted, sendSignaling]);
 
   // Set recording state notification
   const broadcastRecordingState = useCallback((recording, hostUser) => {
     setIsRecording(recording);
     setRecordingBy(recording ? hostUser : null);
-    sendSignaling('meeting-recording-status', {
-      meetingCode,
-      isRecording: recording,
-      startedBy: hostUser
-    });
-  }, [meetingCode, sendSignaling]);
+    if (currentRoomCodeRef.current) {
+      sendSignaling('meeting-recording-status', {
+        meetingCode: currentRoomCodeRef.current,
+        isRecording: recording,
+        startedBy: hostUser
+      });
+    }
+  }, [sendSignaling]);
 
   // Send in-meeting chat message (Supports 'everyone' or specific recipient for direct personal chat)
   const sendMeetingChat = useCallback((text, recipientUserId = 'everyone') => {
-    if (!text.trim()) return;
+    if (!text.trim() || !currentRoomCodeRef.current) return;
     sendSignaling('meeting-chat-message', {
-      meetingCode,
+      meetingCode: currentRoomCodeRef.current,
       messageText: text.trim(),
       recipientUserId: recipientUserId || 'everyone'
     });
-  }, [meetingCode, sendSignaling]);
+  }, [sendSignaling]);
 
   // Setup Signaling Event Listeners for Group Meeting
   useEffect(() => {
@@ -413,10 +452,15 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       const existing = payload.participants || [];
       setParticipants(existing);
 
+      const roomCode = payload.meetingCode || currentRoomCodeRef.current;
+      if (roomCode) {
+        currentRoomCodeRef.current = roomCode.trim().toLowerCase();
+      }
+
       // Create an offer to each existing participant in the room
       for (const remoteUser of existing) {
         try {
-          const pc = createPeerConnection(remoteUser.id, localStream);
+          const pc = createPeerConnection(remoteUser.id, localStreamRef.current);
           const offer = await pc.createOffer({
             offerToReceiveAudio: true,
             offerToReceiveVideo: true
@@ -424,7 +468,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
           await pc.setLocalDescription(offer);
 
           sendSignaling('meeting-offer', {
-            meetingCode,
+            meetingCode: currentRoomCodeRef.current,
             targetUserId: remoteUser.id,
             sdp: offer
           });
@@ -435,18 +479,23 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     });
 
     // A new user joined our room
-    const unsubUserJoined = on('meeting-user-joined', (payload) => {
+    const unsubUserJoined = on('meeting-user-joined', async (payload) => {
       setParticipants(prev => {
         if (prev.some(p => p.id === payload.user.id)) return prev;
         return [...prev, payload.user];
       });
+
+      // Also ensure we have a peer connection prepared for the new joiner
+      if (!peersRef.current.has(payload.user.id) && localStreamRef.current) {
+        createPeerConnection(payload.user.id, localStreamRef.current);
+      }
     });
 
     // Received offer from a peer
     const unsubOffer = on('meeting-offer', async (payload) => {
       const { senderUserId, sdp } = payload;
       try {
-        const pc = createPeerConnection(senderUserId, localStream);
+        const pc = createPeerConnection(senderUserId, localStreamRef.current);
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
 
         // Flush any queued ICE candidates for this peer
@@ -459,11 +508,13 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-        sendSignaling('meeting-answer', {
-          meetingCode,
-          targetUserId: senderUserId,
-          sdp: answer
-        });
+        if (currentRoomCodeRef.current) {
+          sendSignaling('meeting-answer', {
+            meetingCode: currentRoomCodeRef.current,
+            targetUserId: senderUserId,
+            sdp: answer
+          });
+        }
       } catch (err) {
         console.error('Failed to handle meeting-offer:', err);
       }
@@ -513,7 +564,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     const unsubUserLeft = on('meeting-user-left', (payload) => {
       const { userId } = payload;
       if (peersRef.current.has(userId)) {
-        peersRef.current.get(userId).close();
+        try { peersRef.current.get(userId).close(); } catch (e) {}
         peersRef.current.delete(userId);
       }
       candidateQueuesRef.current.delete(userId);
@@ -571,7 +622,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       unsubChat();
       unsubMeetingEnded();
     };
-  }, [on, meetingCode, localStream, createPeerConnection, sendSignaling, cleanupMeetingResources]);
+  }, [on, createPeerConnection, sendSignaling, cleanupMeetingResources]);
 
   return {
     inMeeting,

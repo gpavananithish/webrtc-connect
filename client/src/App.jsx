@@ -83,14 +83,15 @@ function MainApplication() {
 
   // Launch group meeting from standard lobby
   const handleStartMeeting = (code, password) => {
-    // Direct from lobby or open prejoin
-    setPreJoinMeetingCode(code);
+    const cleanCode = (code || '').trim().toLowerCase();
+    setPreJoinMeetingCode(cleanCode);
     setActiveMeetingPassword(password);
   };
 
   // Confirm join from PreJoinLobby
   const handlePreJoinConfirm = ({ code, password, displayName, audioEnabled, videoEnabled }) => {
-    setActiveMeetingCode(code);
+    const cleanCode = (code || '').trim().toLowerCase();
+    setActiveMeetingCode(cleanCode);
     setActiveMeetingPassword(password);
     setPreJoinMeetingCode(null);
 
@@ -99,7 +100,7 @@ function MainApplication() {
       displayName: displayName || user.displayName
     };
 
-    meshMeeting.joinMeeting(code, customUser, password, { audioEnabled, videoEnabled });
+    meshMeeting.joinMeeting(cleanCode, customUser, password, { audioEnabled, videoEnabled });
   };
 
   // Switch to chat with user
