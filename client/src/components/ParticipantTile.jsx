@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { MicOff, Pin, User } from 'lucide-react';
+import { MicOff, Pin, User, ScreenShare } from 'lucide-react';
 
 export default function ParticipantTile({ 
   user, 
@@ -132,20 +132,25 @@ export default function ParticipantTile({
         zIndex: 15,
         pointerEvents: 'none'
       }}>
-        {/* Screen Sharing Badge */}
+        {/* Screen Sharing Presenter Banner (Zoom Style) */}
         {isScreenSharing ? (
           <div style={{
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'rgba(6, 182, 212, 0.25)',
-            border: '1px solid rgba(6, 182, 212, 0.5)',
-            color: 'var(--accent-cyan)',
-            fontSize: '0.7rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 10px',
+            borderRadius: 'var(--radius-md)',
+            background: 'rgba(16, 185, 129, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: '#ffffff',
+            fontSize: '0.74rem',
             fontWeight: 700,
+            boxShadow: 'var(--shadow-sm)',
             backdropFilter: 'blur(8px)',
             pointerEvents: 'auto'
           }}>
-            SCREEN SHARING
+            <ScreenShare size={14} />
+            <span>{isLocal ? 'You are presenting' : `${user?.displayName || 'Participant'} is presenting`}</span>
           </div>
         ) : <div />}
 

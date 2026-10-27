@@ -24,6 +24,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
     activeSpeakerId,
     inMeetingMessages,
     leaveMeeting,
+    endMeetingForEveryone,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
@@ -38,19 +39,29 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
   const [activeDrawer, setActiveDrawer] = useState(null); // 'chat' | 'people' | null
   const [chatInput, setChatInput] = useState('');
   const [recordingLoading, setRecordingLoading] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
-  // Auto-pin when someone starts screen sharing (Google Meet behavior)
+  // Check if current user is the host who created the meeting
+  const isHost = meetingDetails?.hostId === user?.id;
+
+  // Determine who is actively sharing screen
+  const remoteSharerEntry = Object.entries(participantStates).find(([uId, st]) => st && st.isScreenSharing);
+  const remoteSharerId = remoteSharerEntry ? remoteSharerEntry[0] : null;
+  const remoteSharerUser = remoteSharerId ? participants.find(p => p.id === remoteSharerId) : null;
+  const activeScreenSharerName = isScreenSharing 
+    ? 'You' 
+    : (remoteSharerUser ? remoteSharerUser.displayName : null);
+
+  // Auto-pin when someone starts screen sharing (Google Meet & Zoom behavior)
   useEffect(() => {
     if (isScreenSharing) {
       setPinnedId('local');
       return;
     }
-    // Check if any remote participant is sharing their screen
-    const remoteSharer = Object.entries(participantStates).find(([uId, st]) => st && st.isScreenSharing);
-    if (remoteSharer) {
-      setPinnedId(remoteSharer[0]);
+    if (remoteSharerId) {
+      setPinnedId(remoteSharerId);
     }
-  }, [isScreenSharing, participantStates]);
+  }, [isScreenSharing, remoteSharerId]);
 
   const recorderRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -112,7 +123,6 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
 
     if (!recorder.isRecording) {
       try {
-        // Collect all active video elements and audio streams
         const videoElements = Array.from(document.querySelectorAll('video'));
         const audioStreams = [localStream, ...Object.values(remoteStreams)].filter(Boolean);
 
@@ -127,7 +137,6 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
         broadcastRecordingState(false, null);
 
         if (result && result.blob) {
-          // Upload recording to backend
           await api.uploadRecording(result.blob, {
             meetingId: meetingDetails?.id,
             meetingTitle: meetingDetails?.title || 'Meeting Session',
@@ -202,6 +211,11 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>
                 Mesh P2P ({totalCount}/{meetingDetails?.maxParticipants || 6})
               </span>
+              {isHost && (
+                <span className="badge badge-success" style={{ fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                  Host
+                </span>
+              )}
             </div>
           </div>
 
@@ -210,11 +224,11 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             <button
               onClick={handleCopyLink}
               className="btn btn-primary"
-              style={{ padding: '6px 12px', fontSize: '0.78rem', gap: '6px' }}
+              style={{ padding: '6px 12px', fontSize: '0.78rem', gap: '6px', color: '#ffffff' }}
               title="Copy Direct Join Link to share like Google Meet"
             >
               {copiedLink ? <Check size={14} color="#ffffff" /> : <Link2 size={14} />}
-              <span>{copiedLink ? 'Link Copied!' : 'Copy Meeting Link'}</span>
+              <span style={{ color: '#ffffff' }}>{copiedLink ? 'Link Copied!' : 'Copy Meeting Link'}</span>
             </button>
 
             <button
@@ -228,6 +242,25 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             </button>
           </div>
         </div>
+
+        {/* Center: Live Screen Sharer Notice (Zoom Green Top Bar) */}
+        {activeScreenSharerName && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full)',
+            background: 'rgba(16, 185, 129, 0.15)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            color: '#10b981'
+          }}>
+            <ScreenShare size={15} />
+            <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+              {isScreenSharing ? 'You are sharing your screen' : `${activeScreenSharerName} is sharing screen`}
+            </span>
+          </div>
+        )}
 
         {/* Live Recording Indicator Banner */}
         {isRecording && (
@@ -252,19 +285,19 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'people' ? null : 'people')}
-            className={`btn btn-secondary ${activeDrawer === 'people' ? 'btn-primary' : ''}`}
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            className={`btn ${activeDrawer === 'people' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', color: activeDrawer === 'people' ? '#ffffff' : 'var(--text-primary)' }}
           >
             <Users size={16} />
-            <span>People ({totalCount})</span>
+            <span style={{ color: activeDrawer === 'people' ? '#ffffff' : 'var(--text-primary)' }}>People ({totalCount})</span>
           </button>
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'chat' ? null : 'chat')}
-            className={`btn btn-secondary ${activeDrawer === 'chat' ? 'btn-primary' : ''}`}
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            className={`btn ${activeDrawer === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', color: activeDrawer === 'chat' ? '#ffffff' : 'var(--text-primary)' }}
           >
             <MessageSquare size={16} />
-            <span>Chat</span>
+            <span style={{ color: activeDrawer === 'chat' ? '#ffffff' : 'var(--text-primary)' }}>Chat</span>
           </button>
         </div>
       </div>
@@ -464,51 +497,70 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               </div>
             )}
 
-            {/* Chat View */}
+            {/* Chat View (Zoom In-Meeting Chat Experience) */}
             {activeDrawer === 'chat' && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {inMeetingMessages.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '30px' }}>
-                      Messages sent here are visible to all meeting participants.
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '36px', padding: '0 16px' }}>
+                      <MessageSquare size={32} style={{ opacity: 0.35, marginBottom: '8px' }} />
+                      <p>Messages sent here are visible to everyone in the meeting.</p>
                     </div>
                   ) : (
-                    inMeetingMessages.map((m, i) => (
-                      <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
-                          <span style={{ fontWeight: 700, color: m.sender?.id === user.id ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
-                            {m.sender?.displayName || 'User'}
-                          </span>
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
-                            {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <div style={{
-                          background: m.sender?.id === user.id ? 'var(--bubble-mine-bg)' : 'var(--bubble-remote-bg)',
-                          border: m.sender?.id === user.id ? '1px solid var(--bubble-mine-border)' : '1px solid var(--border-subtle)',
-                          padding: '8px 10px',
-                          borderRadius: 'var(--radius-md)',
-                          fontSize: '0.85rem',
-                          color: 'var(--text-primary)'
+                    inMeetingMessages.map((m, i) => {
+                      const isMe = m.sender?.id === user.id || m.sender?.username === user.username;
+                      return (
+                        <div key={i} style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: isMe ? 'flex-end' : 'flex-start',
+                          gap: '3px'
                         }}>
-                          {m.text}
+                          {/* Sender name & timestamp header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', padding: '0 4px' }}>
+                            <span style={{
+                              fontWeight: 700,
+                              color: isMe ? 'var(--accent-cyan)' : 'var(--text-secondary)'
+                            }}>
+                              {isMe ? 'You' : (m.sender?.displayName || 'User')}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                              {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          {/* Chat bubble with high-contrast text */}
+                          <div style={{
+                            maxWidth: '85%',
+                            padding: '9px 12px',
+                            borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                            background: isMe ? 'var(--accent-gradient)' : 'var(--bg-secondary)',
+                            color: isMe ? '#ffffff' : 'var(--text-primary)',
+                            border: isMe ? 'none' : '1px solid var(--border-subtle)',
+                            boxShadow: 'var(--shadow-sm)',
+                            fontSize: '0.86rem',
+                            lineHeight: 1.45,
+                            wordBreak: 'break-word'
+                          }}>
+                            {m.text}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
-                <form onSubmit={handleSendChat} style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
+                <form onSubmit={handleSendChat} style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', background: 'var(--bg-secondary)' }}>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="Type in-meeting message..."
+                    placeholder="Type message to everyone..."
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                    style={{ padding: '9px 12px', fontSize: '0.86rem', color: 'var(--text-primary)', flex: 1 }}
                   />
-                  <button type="submit" className="btn btn-primary" style={{ padding: '8px 12px' }}>
-                    <Send size={16} />
+                  <button type="submit" className="btn btn-primary" style={{ padding: '9px 14px', color: '#ffffff' }}>
+                    <Send size={16} color="#ffffff" />
                   </button>
                 </form>
               </div>
@@ -541,11 +593,12 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '68px'
+              minWidth: '68px',
+              color: isAudioMuted ? '#ffffff' : 'var(--text-primary)'
             }}
           >
-            {isAudioMuted ? <MicOff size={19} /> : <Mic size={19} />}
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+            {isAudioMuted ? <MicOff size={19} color="#ffffff" /> : <Mic size={19} />}
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: isAudioMuted ? '#ffffff' : 'var(--text-primary)' }}>
               {isAudioMuted ? 'Unmute' : 'Mute'}
             </span>
           </button>
@@ -561,11 +614,12 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '68px'
+              minWidth: '68px',
+              color: isVideoMuted ? '#ffffff' : 'var(--text-primary)'
             }}
           >
-            {isVideoMuted ? <VideoOff size={19} /> : <Video size={19} />}
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+            {isVideoMuted ? <VideoOff size={19} color="#ffffff" /> : <Video size={19} />}
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: isVideoMuted ? '#ffffff' : 'var(--text-primary)' }}>
               {isVideoMuted ? 'Start Video' : 'Stop Video'}
             </span>
           </button>
@@ -584,11 +638,12 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '68px'
+              minWidth: '68px',
+              color: 'var(--text-primary)'
             }}
           >
             <Shield size={19} />
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Security</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)' }}>Security</span>
           </button>
 
           {/* Participants */}
@@ -603,11 +658,14 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               alignItems: 'center',
               gap: '4px',
               minWidth: '68px',
-              position: 'relative'
+              position: 'relative',
+              color: activeDrawer === 'people' ? '#ffffff' : 'var(--text-primary)'
             }}
           >
-            <Users size={19} />
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Participants</span>
+            <Users size={19} color={activeDrawer === 'people' ? '#ffffff' : 'currentColor'} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: activeDrawer === 'people' ? '#ffffff' : 'var(--text-primary)' }}>
+              Participants
+            </span>
             <span style={{
               position: 'absolute',
               top: '4px',
@@ -623,7 +681,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             </span>
           </button>
 
-          {/* In-Meeting Chat */}
+          {/* In-Meeting Chat (Fixed text contrast and active style) */}
           <button
             onClick={() => setActiveDrawer(activeDrawer === 'chat' ? null : 'chat')}
             className={`btn ${activeDrawer === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
@@ -634,11 +692,14 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '68px'
+              minWidth: '68px',
+              color: activeDrawer === 'chat' ? '#ffffff' : 'var(--text-primary)'
             }}
           >
-            <MessageSquare size={19} />
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Chat</span>
+            <MessageSquare size={19} color={activeDrawer === 'chat' ? '#ffffff' : 'currentColor'} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: activeDrawer === 'chat' ? '#ffffff' : 'var(--text-primary)' }}>
+              Chat
+            </span>
           </button>
 
           {/* Screen Share (Prominent Zoom Green / Cyan Accent) */}
@@ -652,13 +713,13 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '78px',
+              minWidth: '82px',
               color: isScreenSharing ? '#ffffff' : 'var(--status-online)',
               borderColor: isScreenSharing ? 'transparent' : 'rgba(16, 185, 129, 0.4)'
             }}
           >
-            <ScreenShare size={19} />
-            <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+            <ScreenShare size={19} color={isScreenSharing ? '#ffffff' : 'var(--status-online)'} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: isScreenSharing ? '#ffffff' : 'var(--status-online)' }}>
               {isScreenSharing ? 'Sharing' : 'Share Screen'}
             </span>
           </button>
@@ -675,23 +736,21 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '4px',
-              minWidth: '68px'
+              minWidth: '68px',
+              color: recorderRef.current?.isRecording ? '#ffffff' : 'var(--text-primary)'
             }}
           >
             <Circle size={19} fill={recorderRef.current?.isRecording ? '#ffffff' : '#ef4444'} color="#ef4444" />
-            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: recorderRef.current?.isRecording ? '#ffffff' : 'var(--text-primary)' }}>
               {recorderRef.current?.isRecording ? 'Stop Rec' : 'Record'}
             </span>
           </button>
         </div>
 
-        {/* Right Zoom Section: End / Leave Meeting */}
+        {/* Right Zoom Section: End / Leave Meeting Button */}
         <div>
           <button
-            onClick={() => {
-              leaveMeeting();
-              if (onLeave) onLeave();
-            }}
+            onClick={() => setShowLeaveModal(true)}
             className="btn btn-danger"
             style={{
               padding: '9px 18px',
@@ -700,15 +759,109 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              borderRadius: 'var(--radius-md)'
+              borderRadius: 'var(--radius-md)',
+              color: '#ffffff'
             }}
-            title="Leave Meeting Room"
+            title={isHost ? 'End or Leave Meeting' : 'Leave Meeting'}
           >
-            <PhoneOff size={16} />
-            <span>End Meeting</span>
+            <PhoneOff size={16} color="#ffffff" />
+            <span style={{ color: '#ffffff' }}>{isHost ? 'End' : 'Leave'}</span>
           </button>
         </div>
       </div>
+
+      {/* Zoom-Style Leave / End Meeting Modal */}
+      {showLeaveModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-medium)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-lg)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              color: '#ef4444'
+            }}>
+              <PhoneOff size={24} />
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {isHost ? 'End Meeting for All?' : 'Leave Meeting?'}
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                {isHost
+                  ? 'As the host, you can end this meeting for all participants, or leave the meeting while allowing others to continue.'
+                  : 'Are you sure you want to disconnect from this meeting? You can rejoin anytime using the link.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+              {isHost && (
+                <button
+                  onClick={() => {
+                    endMeetingForEveryone();
+                    setShowLeaveModal(false);
+                    if (onLeave) onLeave();
+                  }}
+                  className="btn btn-danger"
+                  style={{ width: '100%', padding: '12px', fontSize: '0.92rem', fontWeight: 700, color: '#ffffff' }}
+                >
+                  End Meeting for All
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  leaveMeeting();
+                  setShowLeaveModal(false);
+                  if (onLeave) onLeave();
+                }}
+                className={`btn ${isHost ? 'btn-secondary' : 'btn-danger'}`}
+                style={{ width: '100%', padding: '12px', fontSize: '0.92rem', fontWeight: 700, color: isHost ? 'var(--text-primary)' : '#ffffff' }}
+              >
+                Leave Meeting
+              </button>
+
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className="btn btn-secondary"
+                style={{ width: '100%', padding: '10px', fontSize: '0.88rem', color: 'var(--text-muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

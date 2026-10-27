@@ -215,11 +215,8 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     }
   }, [sendSignaling, user, setupAudioAnalyzer]);
 
-  // Leave meeting room
-  const leaveMeeting = useCallback(() => {
-    sendSignaling('leave-meeting', { meetingCode });
-
-    // Clean up all peers
+  // Internal helper to tear down peers and local tracks
+  const cleanupMeetingResources = useCallback(() => {
     for (const [pId, pc] of peersRef.current.entries()) {
       pc.close();
     }
@@ -232,7 +229,6 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       audioContextRef.current = null;
     }
 
-    // Stop media tracks
     if (localStream) {
       localStream.getTracks().forEach(t => t.stop());
     }
@@ -247,9 +243,22 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     setInMeeting(false);
     setIsRecording(false);
     setRecordingBy(null);
+    setInMeetingMessages([]);
 
     if (onMeetingEnded) onMeetingEnded();
-  }, [localStream, meetingCode, onMeetingEnded, sendSignaling]);
+  }, [localStream, onMeetingEnded]);
+
+  // Leave meeting room (for individual participant)
+  const leaveMeeting = useCallback(() => {
+    sendSignaling('leave-meeting', { meetingCode });
+    cleanupMeetingResources();
+  }, [cleanupMeetingResources, meetingCode, sendSignaling]);
+
+  // Host ends meeting for everyone in the room (Zoom style)
+  const endMeetingForEveryone = useCallback(() => {
+    sendSignaling('end-meeting-all', { meetingCode });
+    cleanupMeetingResources();
+  }, [cleanupMeetingResources, meetingCode, sendSignaling]);
 
   // Toggle local audio mute
   const toggleAudio = useCallback(() => {
@@ -521,6 +530,12 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       soundService.playMessageSound();
     });
 
+    // Meeting ended for everyone by host
+    const unsubMeetingEnded = on('meeting-ended-by-host', (payload) => {
+      alert(`Meeting ended by host (${payload.endedBy || 'Host'})`);
+      cleanupMeetingResources();
+    });
+
     return () => {
       unsubJoined();
       unsubUserJoined();
@@ -531,8 +546,9 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       unsubTrackState();
       unsubRecordingState();
       unsubChat();
+      unsubMeetingEnded();
     };
-  }, [on, meetingCode, localStream, createPeerConnection, sendSignaling]);
+  }, [on, meetingCode, localStream, createPeerConnection, sendSignaling, cleanupMeetingResources]);
 
   return {
     inMeeting,
@@ -550,6 +566,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     inMeetingMessages,
     joinMeeting,
     leaveMeeting,
+    endMeetingForEveryone,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,

@@ -458,6 +458,29 @@ function setupSignalingServer(httpServer) {
           break;
         }
 
+        case 'end-meeting-all': {
+          if (!currentSocketUser) return;
+          const { meetingCode } = payload;
+          const code = meetingCode.trim().toLowerCase();
+          const room = meetingRooms.get(code);
+          if (room) {
+            // Broadcast meeting-ended to every participant in room
+            for (const [pId, pData] of room.entries()) {
+              send(pData.ws, 'meeting-ended-by-host', {
+                meetingCode: code,
+                endedBy: currentSocketUser.user?.displayName || 'Host'
+              });
+            }
+            meetingRooms.delete(code);
+
+            // Update meeting status in DB if exists
+            try {
+              db.prepare("UPDATE meetings SET is_active = 0, ended_at = CURRENT_TIMESTAMP WHERE code = ?").run(code);
+            } catch (e) {}
+          }
+          break;
+        }
+
         // ==========================================
         // REAL-TIME CHAT & TYPING
         // ==========================================
