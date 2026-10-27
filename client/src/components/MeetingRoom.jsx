@@ -15,6 +15,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
     meetingDetails,
     participants,
     localStream,
+    screenStream,
     remoteStreams,
     isAudioMuted,
     isVideoMuted,
@@ -315,24 +316,24 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             padding: '16px',
             overflow: 'hidden'
           }}>
-            {/* Main Stage (Large View with dark backdrop for maximum screen clarity) */}
+            {/* Main Stage (Large View) */}
             <div style={{
               flex: 1,
               minHeight: 0,
               position: 'relative',
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
-              background: '#000000',
+              background: 'var(--bg-secondary)',
               border: '1px solid var(--border-medium)',
               boxShadow: 'var(--shadow-md)'
             }}>
               {pinnedId === 'local' ? (
                 <ParticipantTile
                   user={user}
-                  stream={localStream}
+                  stream={isScreenSharing ? (screenStream || localStream) : localStream}
                   isLocal={true}
                   isAudioMuted={isAudioMuted}
-                  isVideoMuted={isVideoMuted}
+                  isVideoMuted={isScreenSharing ? false : isVideoMuted}
                   isSpeaking={activeSpeakerId === user?.id}
                   isScreenSharing={isScreenSharing}
                   isPinned={true}
@@ -348,7 +349,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                       stream={remoteStreams[pinnedId]}
                       isLocal={false}
                       isAudioMuted={pState.audioMuted}
-                      isVideoMuted={pState.videoMuted}
+                      isVideoMuted={pState.isScreenSharing ? false : pState.videoMuted}
                       isSpeaking={activeSpeakerId === pinnedId}
                       isScreenSharing={pState.isScreenSharing}
                       isPinned={true}
@@ -374,10 +375,10 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                 <div style={{ width: '100%', height: '145px', flexShrink: 0 }}>
                   <ParticipantTile
                     user={user}
-                    stream={localStream}
+                    stream={isScreenSharing ? (screenStream || localStream) : localStream}
                     isLocal={true}
                     isAudioMuted={isAudioMuted}
-                    isVideoMuted={isVideoMuted}
+                    isVideoMuted={isScreenSharing ? false : isVideoMuted}
                     isSpeaking={activeSpeakerId === user?.id}
                     isScreenSharing={isScreenSharing}
                     isPinned={false}
@@ -396,7 +397,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                       stream={remoteStreams[p.id]}
                       isLocal={false}
                       isAudioMuted={pState.audioMuted}
-                      isVideoMuted={pState.videoMuted}
+                      isVideoMuted={pState.isScreenSharing ? false : pState.videoMuted}
                       isSpeaking={activeSpeakerId === p.id}
                       isScreenSharing={pState.isScreenSharing}
                       isPinned={false}
@@ -420,10 +421,10 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             {/* Local User Tile */}
             <ParticipantTile
               user={user}
-              stream={localStream}
+              stream={isScreenSharing ? (screenStream || localStream) : localStream}
               isLocal={true}
               isAudioMuted={isAudioMuted}
-              isVideoMuted={isVideoMuted}
+              isVideoMuted={isScreenSharing ? false : isVideoMuted}
               isSpeaking={activeSpeakerId === user?.id}
               isScreenSharing={isScreenSharing}
               isPinned={false}

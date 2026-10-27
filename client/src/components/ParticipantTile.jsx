@@ -30,7 +30,23 @@ export default function ParticipantTile({
     }
   }, [stream, isLocal]);
 
-  const hasVideo = stream && stream.getVideoTracks().length > 0 && !isVideoMuted;
+  // Accurate check if video track is present and enabled
+  const videoTrack = stream && stream.getVideoTracks().length > 0 ? stream.getVideoTracks()[0] : null;
+  const isTrackLive = videoTrack && videoTrack.readyState === 'live' && videoTrack.enabled;
+  const hasVideo = isScreenSharing || (!isVideoMuted && isTrackLive);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      if (stream && hasVideo) {
+        if (videoRef.current.srcObject !== stream) {
+          videoRef.current.srcObject = stream;
+        }
+        videoRef.current.play().catch(e => console.log('Video play note:', e));
+      } else {
+        videoRef.current.srcObject = null;
+      }
+    }
+  }, [stream, hasVideo]);
 
   return (
     <div 
@@ -51,8 +67,8 @@ export default function ParticipantTile({
         transition: 'all 0.2s ease'
       }}
     >
-      {/* Video Element */}
-      {stream && (
+      {/* Video Element - Only rendered and displayed when video is active */}
+      {hasVideo && (
         <video
           ref={videoRef}
           autoPlay
@@ -64,8 +80,8 @@ export default function ParticipantTile({
             maxWidth: '100%',
             maxHeight: '100%',
             objectFit: isScreenSharing ? 'contain' : (isPinned ? 'contain' : 'cover'),
-            background: '#000000',
-            display: hasVideo ? 'block' : 'none',
+            background: isScreenSharing ? '#000000' : 'transparent',
+            display: 'block',
             transform: isLocal && !isScreenSharing ? 'scaleX(-1)' : 'none'
           }}
         />

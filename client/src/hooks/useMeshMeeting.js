@@ -301,25 +301,34 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     }
   }, [localStream, meetingCode, isAudioMuted, isScreenSharing, sendSignaling]);
 
+  const [screenStream, setScreenStream] = useState(null);
+
   // Screen sharing in meeting
   const toggleScreenShare = useCallback(async () => {
     if (!inMeeting) return;
 
     if (!isScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: 'always',
+            displaySurface: 'monitor'
+          },
+          audio: false
         });
-        screenStreamRef.current = screenStream;
-        const screenTrack = screenStream.getVideoTracks()[0];
+        screenStreamRef.current = stream;
+        setScreenStream(stream);
+        const screenTrack = stream.getVideoTracks()[0];
 
-        // Replace track on all existing peer connections
+        // Replace or add track on all existing peer connections
         for (const [pId, pc] of peersRef.current.entries()) {
           const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
           if (videoSender) {
             originalVideoTrackRef.current = videoSender.track;
             await videoSender.replaceTrack(screenTrack);
+          } else if (localStream) {
+            // If peer connection had no video sender
+            pc.addTrack(screenTrack, localStream);
           }
         }
 
@@ -330,6 +339,11 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
               await videoSender.replaceTrack(originalVideoTrackRef.current);
             }
           }
+          if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(t => t.stop());
+            screenStreamRef.current = null;
+          }
+          setScreenStream(null);
           setIsScreenSharing(false);
           sendSignaling('meeting-track-state', {
             meetingCode,
@@ -347,13 +361,14 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
           isScreenSharing: true
         });
       } catch (err) {
-        console.warn('Screen share cancelled:', err);
+        console.warn('Screen share cancelled or failed:', err);
       }
     } else {
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
       }
+      setScreenStream(null);
       for (const [pId, pc] of peersRef.current.entries()) {
         const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
         if (videoSender && originalVideoTrackRef.current) {
@@ -368,7 +383,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
         isScreenSharing: false
       });
     }
-  }, [inMeeting, isScreenSharing, isAudioMuted, isVideoMuted, meetingCode, sendSignaling]);
+  }, [inMeeting, isScreenSharing, isAudioMuted, isVideoMuted, meetingCode, sendSignaling, localStream]);
 
   // Set recording state notification
   const broadcastRecordingState = useCallback((recording, hostUser) => {
@@ -563,6 +578,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     meetingDetails,
     participants,
     localStream,
+    screenStream,
     remoteStreams,
     isAudioMuted,
     isVideoMuted,
