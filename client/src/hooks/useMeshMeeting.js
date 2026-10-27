@@ -21,6 +21,11 @@ export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
   // Active meeting room code reference to always be in sync across closures & callbacks
   const currentRoomCodeRef = useRef(initialMeetingCode ? initialMeetingCode.trim().toLowerCase() : null);
   const localStreamRef = useRef(null);
+  const onMeetingEndedRef = useRef(onMeetingEnded);
+
+  useEffect(() => {
+    onMeetingEndedRef.current = onMeetingEnded;
+  }, [onMeetingEnded]);
 
   // Keep currentRoomCodeRef in sync when initialMeetingCode changes from parent
   useEffect(() => {
@@ -271,9 +276,12 @@ export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
     setIsRecording(false);
     setRecordingBy(null);
     setInMeetingMessages([]);
+    currentRoomCodeRef.current = null;
 
-    if (onMeetingEnded) onMeetingEnded();
-  }, [onMeetingEnded]);
+    if (onMeetingEndedRef.current) {
+      onMeetingEndedRef.current();
+    }
+  }, []);
 
   // Leave meeting room (for individual participant)
   const leaveMeeting = useCallback(() => {
@@ -358,8 +366,22 @@ export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
           if (videoSender) {
             originalVideoTrackRef.current = videoSender.track;
             await videoSender.replaceTrack(screenTrack);
-          } else if (localStreamRef.current) {
-            pc.addTrack(screenTrack, localStreamRef.current);
+          } else {
+            // If peer connection had no video sender, add the screen track and renegotiate
+            pc.addTrack(screenTrack, stream);
+            try {
+              const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+              await pc.setLocalDescription(offer);
+              if (currentRoomCodeRef.current) {
+                sendSignaling('meeting-offer', {
+                  meetingCode: currentRoomCodeRef.current,
+                  targetUserId: pId,
+                  sdp: offer
+                });
+              }
+            } catch (negErr) {
+              console.warn('Renegotiation offer error during screen share:', negErr);
+            }
           }
         }
 
@@ -391,7 +413,7 @@ export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
           sendSignaling('meeting-track-state', {
             meetingCode: currentRoomCodeRef.current,
             audioMuted: isAudioMuted,
-            videoMuted: isVideoMuted,
+            videoMuted: false, // Ensure video is active during screen share
             isScreenSharing: true
           });
         }
@@ -571,6 +593,11 @@ export function useMeshMeeting(initialMeetingCode, onMeetingEnded) {
       analysersRef.current.delete(userId);
 
       setParticipants(prev => prev.filter(p => p.id !== userId));
+      setParticipantStates(prev => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
       setRemoteStreams(prev => {
         const next = { ...prev };
         delete next[userId];

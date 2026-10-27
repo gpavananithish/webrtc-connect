@@ -30,23 +30,47 @@ export default function ParticipantTile({
     }
   }, [stream, isLocal]);
 
-  // Accurate check if video track is present and enabled
-  const videoTrack = stream && stream.getVideoTracks().length > 0 ? stream.getVideoTracks()[0] : null;
-  const isTrackLive = videoTrack && videoTrack.readyState === 'live' && videoTrack.enabled;
-  const hasVideo = isScreenSharing || (!isVideoMuted && isTrackLive);
+  // Check if video is active: either isScreenSharing is true, or video is not muted and a video track is available/live
+  const videoTracks = stream ? stream.getVideoTracks() : [];
+  const videoTrack = videoTracks.length > 0 ? videoTracks[0] : null;
+  const isTrackActive = videoTrack && videoTrack.readyState !== 'ended';
+  const hasVideo = isScreenSharing ? (isLocal ? !!stream : true) : (!isVideoMuted && isTrackActive);
 
+  // Keep videoRef.current srcObject up to date
   useEffect(() => {
-    if (videoRef.current) {
-      if (stream && hasVideo) {
-        if (videoRef.current.srcObject !== stream) {
-          videoRef.current.srcObject = stream;
-        }
-        videoRef.current.play().catch(e => console.log('Video play note:', e));
-      } else {
-        videoRef.current.srcObject = null;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    if (stream && hasVideo) {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
       }
+      videoEl.play().catch(e => {
+        // Autoplay may be interrupted or require user interaction; handled gracefully
+      });
+    } else {
+      videoEl.srcObject = null;
     }
   }, [stream, hasVideo]);
+
+  // Listen to track unmute/ended events to trigger re-renders
+  const [, setTrackStateTick] = React.useState(0);
+  useEffect(() => {
+    if (!stream) return;
+    const handleTrackChange = () => setTrackStateTick(t => t + 1);
+    stream.getTracks().forEach(t => {
+      t.addEventListener('unmute', handleTrackChange);
+      t.addEventListener('mute', handleTrackChange);
+      t.addEventListener('ended', handleTrackChange);
+    });
+    return () => {
+      stream.getTracks().forEach(t => {
+        t.removeEventListener('unmute', handleTrackChange);
+        t.removeEventListener('mute', handleTrackChange);
+        t.removeEventListener('ended', handleTrackChange);
+      });
+    };
+  }, [stream]);
 
   return (
     <div 
@@ -89,25 +113,63 @@ export default function ParticipantTile({
 
       {/* Fallback Avatar when camera is disabled or stream has no video */}
       {!hasVideo && (
-        <div style={{ textAlign: 'center', zIndex: 5, padding: '16px' }}>
+        <div style={{
+          textAlign: 'center',
+          zIndex: 5,
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%'
+        }}>
           <div style={{ position: 'relative', display: 'inline-block', marginBottom: '12px' }}>
-            <img
-              src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.displayName || 'User')}`}
-              alt={user?.displayName}
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user?.displayName || 'User'}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                  const fallbackInitials = e.target.parentNode.querySelector('.tile-initials-fallback');
+                  if (fallbackInitials) fallbackInitials.style.display = 'flex';
+                }}
+                style={{
+                  width: '84px',
+                  height: '84px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: isSpeaking ? '3px solid var(--accent-cyan)' : '3px solid var(--border-medium)',
+                  boxShadow: isSpeaking ? '0 0 24px rgba(6, 182, 212, 0.45)' : 'var(--shadow-sm)'
+                }}
+              />
+            ) : null}
+            <div
+              className="tile-initials-fallback"
               style={{
-                width: '76px',
-                height: '76px',
+                width: '84px',
+                height: '84px',
                 borderRadius: '50%',
-                objectFit: 'cover',
-                border: '3px solid var(--border-medium)',
-                boxShadow: isSpeaking ? '0 0 20px rgba(6, 182, 212, 0.4)' : 'none'
+                background: 'linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-indigo) 100%)',
+                color: '#ffffff',
+                display: user?.avatar ? 'none' : 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+                fontWeight: 800,
+                border: isSpeaking ? '3px solid var(--accent-cyan)' : '3px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: isSpeaking ? '0 0 24px rgba(6, 182, 212, 0.45)' : 'var(--shadow-sm)'
               }}
-            />
+            >
+              {((user?.displayName || user?.username || 'U')[0]).toUpperCase()}
+            </div>
           </div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {user?.displayName} {isLocal && '(You)'}
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
+            {user?.displayName || user?.username || 'Participant'} {isLocal && '(You)'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)' }} />
             Camera off
           </div>
         </div>

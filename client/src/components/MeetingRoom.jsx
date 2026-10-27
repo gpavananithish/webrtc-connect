@@ -441,7 +441,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                   stream={remoteStreams[p.id]}
                   isLocal={false}
                   isAudioMuted={pState.audioMuted}
-                  isVideoMuted={pState.videoMuted}
+                  isVideoMuted={pState.isScreenSharing ? false : pState.videoMuted}
                   isSpeaking={activeSpeakerId === p.id}
                   isScreenSharing={pState.isScreenSharing}
                   isPinned={false}
