@@ -61,14 +61,32 @@ export default function MeetingLobby({ onStartMeeting }) {
     };
   }, [previewStream]);
 
+  // Clean meeting code or direct link (e.g. https://.../?meeting=abc-defg-hij or abc-defg-hij)
+  const extractMeetingCode = (input) => {
+    if (!input) return '';
+    const trimmed = input.trim();
+    try {
+      if (trimmed.includes('http://') || trimmed.includes('https://') || trimmed.includes('?meeting=')) {
+        const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://dummy.com/${trimmed}`);
+        const codeParam = urlObj.searchParams.get('meeting');
+        if (codeParam) return codeParam.toLowerCase();
+        // Or extract last path segment
+        const parts = urlObj.pathname.split('/').filter(Boolean);
+        if (parts.length > 0) return parts[parts.length - 1].toLowerCase();
+      }
+    } catch (e) {}
+    return trimmed.toLowerCase();
+  };
+
   const handleJoin = async (e) => {
     e.preventDefault();
-    if (!meetingCode.trim()) return;
+    const rawInput = meetingCode.trim();
+    if (!rawInput) return;
     setError('');
     setLoading(true);
 
     try {
-      const code = meetingCode.trim().toLowerCase();
+      const code = extractMeetingCode(rawInput);
       const res = await api.validateMeeting(code, password);
 
       // Clean preview stream before launching meeting
@@ -78,7 +96,7 @@ export default function MeetingLobby({ onStartMeeting }) {
 
       onStartMeeting(code, password);
     } catch (err) {
-      setError(err.message || 'Failed to join meeting');
+      setError(err.message || 'Failed to join meeting. Please verify meeting code or link.');
     } finally {
       setLoading(false);
     }
@@ -208,19 +226,19 @@ export default function MeetingLobby({ onStartMeeting }) {
             <div className="glass-card" style={{ padding: '28px' }}>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px' }}>Join a Meeting</h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Enter the 9-letter code provided by the meeting host.
+                Paste the meeting link or enter the 9-letter code.
               </p>
 
               <form onSubmit={handleJoin}>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Meeting Code
+                    Meeting Link or Code
                   </label>
                   <input
                     type="text"
                     required
                     className="input-field"
-                    placeholder="e.g. abc-defg-hij"
+                    placeholder="Paste link or code (e.g. abc-defg-hij)"
                     value={meetingCode}
                     onChange={(e) => setMeetingCode(e.target.value)}
                   />

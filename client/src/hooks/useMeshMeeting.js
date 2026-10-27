@@ -21,6 +21,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [participantStates, setParticipantStates] = useState({}); // userId -> { audioMuted, videoMuted, isScreenSharing }
   const [isRecording, setIsRecording] = useState(false);
   const [recordingBy, setRecordingBy] = useState(null);
   const [activeSpeakerId, setActiveSpeakerId] = useState(null);
@@ -468,6 +469,19 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       });
     });
 
+    // Track states changed (mic, camera, screen share)
+    const unsubTrackState = on('meeting-track-state-changed', (payload) => {
+      const { userId, audioMuted, videoMuted, isScreenSharing: remoteScreenSharing } = payload;
+      setParticipantStates(prev => ({
+        ...prev,
+        [userId]: {
+          audioMuted: !!audioMuted,
+          videoMuted: !!videoMuted,
+          isScreenSharing: !!remoteScreenSharing
+        }
+      }));
+    });
+
     // Recording status change
     const unsubRecordingState = on('meeting-recording-state', (payload) => {
       setIsRecording(payload.isRecording);
@@ -488,6 +502,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       unsubAnswer();
       unsubIce();
       unsubUserLeft();
+      unsubTrackState();
       unsubRecordingState();
       unsubChat();
     };
@@ -502,6 +517,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     isAudioMuted,
     isVideoMuted,
     isScreenSharing,
+    participantStates,
     isRecording,
     recordingBy,
     activeSpeakerId,

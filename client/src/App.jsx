@@ -56,6 +56,24 @@ function MainApplication() {
     return <AuthPage />;
   }
 
+  // Handle direct meeting link URL parameter (e.g., https://domain.com/?meeting=abc-defg-hij)
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const meetingParam = urlParams.get('meeting');
+      if (meetingParam) {
+        const cleanCode = meetingParam.trim().toLowerCase();
+        // Clean URL to prevent re-triggering on reload
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        // Direct join
+        setActiveMeetingCode(cleanCode);
+        setActiveMeetingPassword(null);
+        meshMeeting.joinMeeting(cleanCode, user, null);
+      }
+    }
+  }, [isAuthenticated, user]);
+
   // Handle incoming call accept
   const handleAcceptIncomingCall = (callData) => {
     acceptIncomingCall();

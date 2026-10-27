@@ -8,7 +8,9 @@ export default function ParticipantTile({
   isAudioMuted = false, 
   isVideoMuted = false,
   isSpeaking = false,
-  isScreenSharing = false 
+  isScreenSharing = false,
+  isPinned = false,
+  onPin = null
 }) {
   const videoRef = useRef(null);
 
@@ -116,24 +118,61 @@ export default function ParticipantTile({
         )}
       </div>
 
-      {/* Screen Sharing Badge */}
-      {isScreenSharing && (
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          padding: '4px 8px',
-          borderRadius: 'var(--radius-sm)',
-          background: 'rgba(6, 182, 212, 0.2)',
-          border: '1px solid rgba(6, 182, 212, 0.4)',
-          color: 'var(--accent-cyan)',
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          zIndex: 10
-        }}>
-          SCREEN SHARING
-        </div>
-      )}
+      {/* Top Controls: Screen Sharing & Pin Action */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        left: '10px',
+        right: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        zIndex: 15,
+        pointerEvents: 'none'
+      }}>
+        {/* Screen Sharing Badge */}
+        {isScreenSharing ? (
+          <div style={{
+            padding: '4px 8px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(6, 182, 212, 0.25)',
+            border: '1px solid rgba(6, 182, 212, 0.5)',
+            color: 'var(--accent-cyan)',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            backdropFilter: 'blur(8px)',
+            pointerEvents: 'auto'
+          }}>
+            SCREEN SHARING
+          </div>
+        ) : <div />}
+
+        {/* Pin / Unpin Button (Google Meet / Zoom style) */}
+        {onPin && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPin();
+            }}
+            className="btn btn-secondary btn-icon"
+            style={{
+              width: '32px',
+              height: '32px',
+              padding: 0,
+              background: isPinned ? 'var(--accent-cyan)' : 'rgba(15, 23, 42, 0.75)',
+              color: isPinned ? '#ffffff' : 'var(--text-primary)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(8px)',
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title={isPinned ? 'Unpin to grid view' : 'Pin to large view'}
+          >
+            <Pin size={15} style={{ transform: isPinned ? 'rotate(45deg)' : 'none' }} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

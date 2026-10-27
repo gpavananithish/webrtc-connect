@@ -5,7 +5,7 @@ import { MeetingRecorder } from '../services/recorderService';
 import { api } from '../services/api';
 import { 
   Mic, MicOff, Video, VideoOff, ScreenShare, PhoneOff, 
-  Circle, Users, MessageSquare, Copy, Check, Send, X, Shield 
+  Circle, Users, MessageSquare, Copy, Check, Send, X, Shield, Link2, Pin 
 } from 'lucide-react';
 
 export default function MeetingRoom({ meshMeeting, onLeave }) {
@@ -18,6 +18,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
     isAudioMuted,
     isVideoMuted,
     isScreenSharing,
+    participantStates = {},
     isRecording,
     recordingBy,
     activeSpeakerId,
@@ -30,11 +31,26 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
     sendMeetingChat
   } = meshMeeting;
 
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [pinnedId, setPinnedId] = useState(null); // 'local' | userId | null
   const [meetingDuration, setMeetingDuration] = useState(0);
   const [activeDrawer, setActiveDrawer] = useState(null); // 'chat' | 'people' | null
   const [chatInput, setChatInput] = useState('');
   const [recordingLoading, setRecordingLoading] = useState(false);
+
+  // Auto-pin when someone starts screen sharing (Google Meet behavior)
+  useEffect(() => {
+    if (isScreenSharing) {
+      setPinnedId('local');
+      return;
+    }
+    // Check if any remote participant is sharing their screen
+    const remoteSharer = Object.entries(participantStates).find(([uId, st]) => st && st.isScreenSharing);
+    if (remoteSharer) {
+      setPinnedId(remoteSharer[0]);
+    }
+  }, [isScreenSharing, participantStates]);
 
   const recorderRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -73,8 +89,17 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
   const handleCopyCode = () => {
     if (meetingDetails?.code) {
       navigator.clipboard.writeText(meetingDetails.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (meetingDetails?.code) {
+      const joinUrl = `${window.location.origin}/?meeting=${encodeURIComponent(meetingDetails.code)}`;
+      navigator.clipboard.writeText(joinUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
@@ -178,16 +203,28 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             </div>
           </div>
 
-          {/* Copy Meeting Code button */}
-          <button
-            onClick={handleCopyCode}
-            className="btn btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-            title="Copy Meeting Code to share"
-          >
-            {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-            <span>{copied ? 'Copied!' : `Code: ${meetingDetails?.code || '---'}`}</span>
-          </button>
+          {/* Copy Meeting Code & Direct Link buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={handleCopyLink}
+              className="btn btn-primary"
+              style={{ padding: '6px 12px', fontSize: '0.78rem', gap: '6px' }}
+              title="Copy Direct Join Link to share like Google Meet"
+            >
+              {copiedLink ? <Check size={14} color="#ffffff" /> : <Link2 size={14} />}
+              <span>{copiedLink ? 'Link Copied!' : 'Copy Meeting Link'}</span>
+            </button>
+
+            <button
+              onClick={handleCopyCode}
+              className="btn btn-secondary"
+              style={{ padding: '6px 10px', fontSize: '0.78rem', gap: '6px' }}
+              title="Copy Meeting Code to share"
+            >
+              {copiedCode ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+              <span>{copiedCode ? 'Copied!' : meetingDetails?.code || '---'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Live Recording Indicator Banner */}
@@ -230,42 +267,143 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
         </div>
       </div>
 
-      {/* Center Layout: Grid + Optional Side Drawer */}
+      {/* Center Layout: Grid / Pinned Stage + Optional Side Drawer */}
       <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
-        {/* Participant Video Grid */}
-        <div style={{
-          flex: 1,
-          padding: '16px',
-          display: 'grid',
-          gap: '12px',
-          ...getGridStyle(),
-          overflow: 'hidden'
-        }}>
-          {/* Local User Tile */}
-          <ParticipantTile
-            user={user}
-            stream={localStream}
-            isLocal={true}
-            isAudioMuted={isAudioMuted}
-            isVideoMuted={isVideoMuted}
-            isSpeaking={activeSpeakerId === user?.id}
-            isScreenSharing={isScreenSharing}
-          />
+        {pinnedId ? (
+          /* Google Meet / Zoom Pinned Stage Layout (For large screen share / speaker view) */
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            padding: '16px',
+            overflow: 'hidden'
+          }}>
+            {/* Main Stage (Large View) */}
+            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+              {pinnedId === 'local' ? (
+                <ParticipantTile
+                  user={user}
+                  stream={localStream}
+                  isLocal={true}
+                  isAudioMuted={isAudioMuted}
+                  isVideoMuted={isVideoMuted}
+                  isSpeaking={activeSpeakerId === user?.id}
+                  isScreenSharing={isScreenSharing}
+                  isPinned={true}
+                  onPin={() => setPinnedId(null)}
+                />
+              ) : (
+                (() => {
+                  const pinnedUser = participants.find(p => p.id === pinnedId);
+                  const pState = participantStates[pinnedId] || {};
+                  return pinnedUser ? (
+                    <ParticipantTile
+                      user={pinnedUser}
+                      stream={remoteStreams[pinnedId]}
+                      isLocal={false}
+                      isAudioMuted={pState.audioMuted}
+                      isVideoMuted={pState.videoMuted}
+                      isSpeaking={activeSpeakerId === pinnedId}
+                      isScreenSharing={pState.isScreenSharing}
+                      isPinned={true}
+                      onPin={() => setPinnedId(null)}
+                    />
+                  ) : null;
+                })()
+              )}
+            </div>
 
-          {/* Remote Participants */}
-          {participants.map((p) => (
+            {/* Bottom Filmstrip (Thumbnail strip of other participants) */}
+            <div style={{
+              height: '140px',
+              display: 'flex',
+              gap: '10px',
+              overflowX: 'auto',
+              flexShrink: 0,
+              paddingBottom: '4px'
+            }}>
+              {/* Local User in thumbnail strip if not pinned */}
+              {pinnedId !== 'local' && (
+                <div style={{ width: '200px', height: '100%', flexShrink: 0 }}>
+                  <ParticipantTile
+                    user={user}
+                    stream={localStream}
+                    isLocal={true}
+                    isAudioMuted={isAudioMuted}
+                    isVideoMuted={isVideoMuted}
+                    isSpeaking={activeSpeakerId === user?.id}
+                    isScreenSharing={isScreenSharing}
+                    isPinned={false}
+                    onPin={() => setPinnedId('local')}
+                  />
+                </div>
+              )}
+
+              {/* Remote Participants in thumbnail strip */}
+              {participants.filter(p => p.id !== pinnedId).map((p) => {
+                const pState = participantStates[p.id] || {};
+                return (
+                  <div key={p.id} style={{ width: '200px', height: '100%', flexShrink: 0 }}>
+                    <ParticipantTile
+                      user={p}
+                      stream={remoteStreams[p.id]}
+                      isLocal={false}
+                      isAudioMuted={pState.audioMuted}
+                      isVideoMuted={pState.videoMuted}
+                      isSpeaking={activeSpeakerId === p.id}
+                      isScreenSharing={pState.isScreenSharing}
+                      isPinned={false}
+                      onPin={() => setPinnedId(p.id)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Normal Uniform Grid Layout */
+          <div style={{
+            flex: 1,
+            padding: '16px',
+            display: 'grid',
+            gap: '12px',
+            ...getGridStyle(),
+            overflow: 'hidden'
+          }}>
+            {/* Local User Tile */}
             <ParticipantTile
-              key={p.id}
-              user={p}
-              stream={remoteStreams[p.id]}
-              isLocal={false}
-              isAudioMuted={false}
-              isVideoMuted={false}
-              isSpeaking={activeSpeakerId === p.id}
-              isScreenSharing={false}
+              user={user}
+              stream={localStream}
+              isLocal={true}
+              isAudioMuted={isAudioMuted}
+              isVideoMuted={isVideoMuted}
+              isSpeaking={activeSpeakerId === user?.id}
+              isScreenSharing={isScreenSharing}
+              isPinned={false}
+              onPin={() => setPinnedId('local')}
             />
-          ))}
-        </div>
+
+            {/* Remote Participants */}
+            {participants.map((p) => {
+              const pState = participantStates[p.id] || {};
+              return (
+                <ParticipantTile
+                  key={p.id}
+                  user={p}
+                  stream={remoteStreams[p.id]}
+                  isLocal={false}
+                  isAudioMuted={pState.audioMuted}
+                  isVideoMuted={pState.videoMuted}
+                  isSpeaking={activeSpeakerId === p.id}
+                  isScreenSharing={pState.isScreenSharing}
+                  isPinned={false}
+                  onPin={() => setPinnedId(p.id)}
+                />
+              );
+            })}
+          </div>
+        )}
 
         {/* Side Drawer: Chat or People */}
         {activeDrawer && (
