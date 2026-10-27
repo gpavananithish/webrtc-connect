@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { 
   Play, Pause, FileText, Download, Edit2, Trash2, Reply 
 } from 'lucide-react';
+import { api } from '../services/api';
 
 // Crisp Modern WhatsApp-style SVG Ticks
 function DoubleTickIcon({ color = '#8696a0', size = 16 }) {
@@ -185,7 +186,7 @@ export default function MessageBubble({
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px' }}>
                 <audio
                   ref={audioRef}
-                  src={message.file.url}
+                  src={api.getFullUrl(message.file.url)}
                   onEnded={() => setIsPlayingAudio(false)}
                   style={{ display: 'none' }}
                 />
@@ -209,9 +210,9 @@ export default function MessageBubble({
             {message.file && message.messageType !== 'voice' && (
               <div style={{ marginBottom: message.content ? '8px' : '0' }}>
                 {message.file.category === 'image' ? (
-                  <a href={message.file.url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                  <a href={api.getFullUrl(message.file.url)} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
                     <img
-                      src={message.file.url}
+                      src={api.getFullUrl(message.file.url)}
                       alt={message.file.originalName}
                       style={{
                         maxWidth: '260px',
@@ -224,7 +225,9 @@ export default function MessageBubble({
                   </a>
                 ) : (
                   <a
-                    href={message.file.url}
+                    href={api.getFullUrl(message.file.url)}
+                    target="_blank"
+                    rel="noreferrer"
                     download={message.file.originalName}
                     style={{
                       display: 'flex',

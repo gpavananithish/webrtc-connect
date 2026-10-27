@@ -154,8 +154,10 @@ export default function RecordingsView() {
                     </button>
 
                     <a
-                      href={rec.url}
+                      href={api.getFullUrl(rec.url)}
                       download={`meeting-${rec.id}.webm`}
+                      target="_blank"
+                      rel="noreferrer"
                       className="btn btn-secondary btn-icon"
                       style={{ width: '36px', height: '36px' }}
                       title="Download WebM Video"
@@ -224,7 +226,7 @@ export default function RecordingsView() {
               {/* Video Element */}
               <div style={{ background: '#000000', width: '100%', height: '480px' }}>
                 <video
-                  src={previewRec.url}
+                  src={api.getFullUrl(previewRec.url)}
                   controls
                   autoPlay
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
@@ -242,8 +244,10 @@ export default function RecordingsView() {
               }}>
                 <div>Recorded: {new Date(previewRec.createdAt).toLocaleString()}</div>
                 <a
-                  href={previewRec.url}
+                  href={api.getFullUrl(previewRec.url)}
                   download={`recording-${previewRec.id}.webm`}
+                  target="_blank"
+                  rel="noreferrer"
                   className="btn btn-secondary"
                   style={{ padding: '6px 14px', fontSize: '0.8rem' }}
                 >

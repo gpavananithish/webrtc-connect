@@ -14,6 +14,19 @@ class ApiService {
     }
   }
 
+  // Resolve relative endpoint/file path against backend API_BASE
+  getFullUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const cleanBase = API_BASE.replace(/\/+$/, '');
+    const cleanPath = path.replace(/^\/+/, '');
+    // If path already starts with api/ and cleanBase ends with /api
+    if (cleanBase.endsWith('/api') && cleanPath.startsWith('api/')) {
+      return `${cleanBase}/${cleanPath.slice(4)}`;
+    }
+    return `${cleanBase}/${cleanPath}`;
+  }
+
   async request(endpoint, options = {}) {
     const headers = options.headers || {};
     const token = this.getToken();
