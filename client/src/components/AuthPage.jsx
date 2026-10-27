@@ -320,7 +320,7 @@ export default function AuthPage() {
                       type="text"
                       required
                       className="input-field"
-                      placeholder="e.g. Nithish Kumar"
+                      placeholder="e.g. User1"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                     />
@@ -348,7 +348,7 @@ export default function AuthPage() {
                   type="email"
                   required
                   className="input-field"
-                  placeholder="nithish@connect.local"
+                  placeholder="user1@connect.local"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />

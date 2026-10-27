@@ -158,39 +158,39 @@ function seedInitialData() {
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
   if (userCount > 0) return;
 
-  console.log('Seeding initial demo team users...');
+  console.log('Seeding initial demo team users (User1 to User4)...');
   const salt = bcrypt.genSaltSync(10);
   const passwordHash = bcrypt.hashSync('password123', salt);
 
   const demoUsers = [
     {
-      id: 'usr_nithish_' + uuidv4().substring(0, 8),
-      email: 'nithish@connect.local',
-      displayName: 'Nithish',
+      id: 'usr_user1_' + uuidv4().substring(0, 8),
+      email: 'user1@connect.local',
+      displayName: 'User1',
       title: 'Developer',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       status: 'offline'
     },
     {
-      id: 'usr_surya_' + uuidv4().substring(0, 8),
-      email: 'surya@connect.local',
-      displayName: 'Surya',
+      id: 'usr_user2_' + uuidv4().substring(0, 8),
+      email: 'user2@connect.local',
+      displayName: 'User2',
       title: 'Developer',
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       status: 'offline'
     },
     {
-      id: 'usr_ajay_' + uuidv4().substring(0, 8),
-      email: 'ajay@connect.local',
-      displayName: 'Ajay',
+      id: 'usr_user3_' + uuidv4().substring(0, 8),
+      email: 'user3@connect.local',
+      displayName: 'User3',
       title: 'Developer',
       avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
       status: 'offline'
     },
     {
-      id: 'usr_vamsi_' + uuidv4().substring(0, 8),
-      email: 'vamsi@connect.local',
-      displayName: 'Vamsi',
+      id: 'usr_user4_' + uuidv4().substring(0, 8),
+      email: 'user4@connect.local',
+      displayName: 'User4',
       title: 'Developer',
       avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
       status: 'offline'
@@ -206,7 +206,7 @@ function seedInitialData() {
     insertUser.run(u.id, u.email, passwordHash, u.displayName, u.avatar, u.title, u.status);
   }
 
-  console.log('Database initialized with clean chat history and Indian demo accounts.');
+  console.log('Database initialized with clean chat history and User1 to User4 demo accounts.');
 }
 
 initializeDatabase();

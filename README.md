@@ -23,12 +23,12 @@ That's it! The app seeds 4 demo team accounts automatically on first run.
 
 ## Demo Accounts (Pre-seeded)
 
-| Name            | Email                  | Password      |
-|-----------------|------------------------|---------------|
-| Nithish         | nithish@connect.local  | password123   |
-| Surya           | surya@connect.local    | password123   |
-| Ajay            | ajay@connect.local     | password123   |
-| Vamsi           | vamsi@connect.local    | password123   |
+| Name   | Email                | Password    |
+|--------|----------------------|-------------|
+| User1  | user1@connect.local  | password123 |
+| User2  | user2@connect.local  | password123 |
+| User3  | user3@connect.local  | password123 |
+| User4  | user4@connect.local  | password123 |
 
 You can also **register your own account** from the Sign Up tab.
 
@@ -38,9 +38,9 @@ You can also **register your own account** from the Sign Up tab.
 
 Since WebRTC calls need **two separate users**, follow this workflow:
 
-1. Open **Browser Tab 1** → `http://localhost:5173` → click **Nithish** (1-click demo login)
-2. Open **Incognito/Private Window** → `http://localhost:5173` → click **Surya**
-3. Now Nithish and Surya are both online — you can call, chat, share screens, and meet!
+1. Open **Browser Tab 1** → `http://localhost:5173` → click **User1** (1-click demo login)
+2. Open **Incognito/Private Window** → `http://localhost:5173` → click **User2**
+3. Now User1 and User2 are both online — you can call, chat, share screens, and meet!
 
 ---
 

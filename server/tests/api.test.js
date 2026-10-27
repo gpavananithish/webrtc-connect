@@ -76,17 +76,17 @@ async function runTests() {
   try {
     const loginAlice = await request('/auth/login', {
       method: 'POST',
-      body: { email: 'nithish@connect.local', password: 'password123' }
+      body: { email: 'user1@connect.local', password: 'password123' }
     });
-    assert('Nithish login succeeds with JWT', loginAlice.status === 200 && loginAlice.data.token);
+    assert('User1 login succeeds with JWT', loginAlice.status === 200 && loginAlice.data.token);
     aliceToken = loginAlice.data.token;
     aliceUser = loginAlice.data.user;
 
     const loginBob = await request('/auth/login', {
       method: 'POST',
-      body: { email: 'surya@connect.local', password: 'password123' }
+      body: { email: 'user2@connect.local', password: 'password123' }
     });
-    assert('Surya login succeeds with JWT', loginBob.status === 200 && loginBob.data.token);
+    assert('User2 login succeeds with JWT', loginBob.status === 200 && loginBob.data.token);
     bobToken = loginBob.data.token;
     bobUser = loginBob.data.user;
   } catch (e) {
@@ -109,23 +109,23 @@ async function runTests() {
       token: aliceToken,
       body: { targetUserId: bobUser.id }
     });
-    assert('Get or create direct conversation between Nithish and Surya', convRes.status === 200 || convRes.status === 201);
+    assert('Get or create direct conversation between User1 and User2', convRes.status === 200 || convRes.status === 201);
     conversationId = convRes.data.conversationId;
 
-    // Send message from Nithish
+    // Send message from User1
     const msgRes = await request(`/messages/conversations/${conversationId}/messages`, {
       method: 'POST',
       token: aliceToken,
-      body: { content: 'Automated test message from Nithish' }
+      body: { content: 'Automated test message from User1' }
     });
-    assert('Nithish sends persistent message to Surya', msgRes.status === 201 && msgRes.data.message.content.includes('Nithish'));
+    assert('User1 sends persistent message to User2', msgRes.status === 201 && msgRes.data.message.content.includes('User1'));
     const messageId = msgRes.data.message.id;
 
     // Fetch messages
     const fetchMsgs = await request(`/messages/conversations/${conversationId}/messages`, {
       token: bobToken
     });
-    assert('Surya receives persisted messages from DB', fetchMsgs.status === 200 && fetchMsgs.data.messages.length > 0);
+    assert('User2 receives persisted messages from DB', fetchMsgs.status === 200 && fetchMsgs.data.messages.length > 0);
 
     // Edit message
     const editRes = await request(`/messages/${messageId}`, {
