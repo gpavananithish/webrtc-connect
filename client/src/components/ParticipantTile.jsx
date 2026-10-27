@@ -40,13 +40,14 @@ export default function ParticipantTile({
         width: '100%',
         height: '100%',
         minHeight: '200px',
-        background: '#0a0f1d',
+        background: 'var(--bg-secondary)',
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 'var(--radius-lg)',
         border: isSpeaking ? '2px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
         transition: 'all 0.2s ease'
       }}
     >
@@ -69,7 +70,7 @@ export default function ParticipantTile({
 
       {/* Fallback Avatar when camera is disabled or stream has no video */}
       {!hasVideo && (
-        <div style={{ textAlign: 'center', zIndex: 5 }}>
+        <div style={{ textAlign: 'center', zIndex: 5, padding: '16px' }}>
           <div style={{ position: 'relative', display: 'inline-block', marginBottom: '12px' }}>
             <img
               src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.displayName || 'User')}`}
@@ -84,7 +85,7 @@ export default function ParticipantTile({
               }}
             />
           </div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ffffff' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
             {user?.displayName} {isLocal && '(You)'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -103,12 +104,13 @@ export default function ParticipantTile({
         gap: '6px',
         padding: '4px 10px',
         borderRadius: 'var(--radius-full)',
-        background: 'rgba(15, 23, 42, 0.75)',
+        background: 'var(--bg-card)',
         backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
         zIndex: 10
       }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f8fafc' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
           {user?.displayName} {isLocal && '(You)'}
         </span>
         {isAudioMuted && (
@@ -159,12 +161,13 @@ export default function ParticipantTile({
               width: '32px',
               height: '32px',
               padding: 0,
-              background: isPinned ? 'var(--accent-cyan)' : 'rgba(15, 23, 42, 0.75)',
+              background: isPinned ? 'var(--accent-cyan)' : 'var(--bg-card)',
               color: isPinned ? '#ffffff' : 'var(--text-primary)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              border: '1px solid var(--border-medium)',
               backdropFilter: 'blur(8px)',
               pointerEvents: 'auto',
               cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
               transition: 'all 0.15s ease'
             }}
             title={isPinned ? 'Unpin to grid view' : 'Pin to large view'}

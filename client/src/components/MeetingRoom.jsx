@@ -170,21 +170,23 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
       left: 0,
       width: '100vw',
       height: '100vh',
-      background: '#070b14',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
       zIndex: 9999,
       display: 'flex',
       flexDirection: 'column',
       userSelect: 'none',
       overflow: 'hidden'
     }}>
-      {/* Top Meeting Header Bar */}
+      {/* Top Meeting Header Bar (Zoom / Google Meet Style) */}
       <div style={{
         padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(15, 23, 42, 0.9)',
+        background: 'var(--bg-secondary)',
         borderBottom: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-sm)',
         zIndex: 20
       }}>
         {/* Meeting Info */}
@@ -237,7 +239,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             borderRadius: 'var(--radius-full)',
             background: 'rgba(239, 68, 68, 0.15)',
             border: '1px solid rgba(239, 68, 68, 0.4)',
-            color: '#f87171'
+            color: '#ef4444'
           }}>
             <Circle size={10} fill="#ef4444" color="#ef4444" className="recording-pulse" />
             <span style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.04em' }}>
@@ -410,11 +412,12 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
           <div className="glass-panel" style={{
             width: '320px',
             height: '100%',
-            background: 'rgba(15, 23, 42, 0.95)',
+            background: 'var(--bg-card)',
             borderLeft: '1px solid var(--border-medium)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 30
+            zIndex: 30,
+            boxShadow: 'var(--shadow-lg)'
           }}>
             {/* Drawer Header */}
             <div style={{
@@ -439,10 +442,10 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
             {activeDrawer === 'people' && (
               <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
                 {/* Local user */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.04)', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', marginBottom: '6px' }}>
                   <img src={user.avatar} alt={user.displayName} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.displayName} (You)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{user.displayName} (You)</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{meetingDetails?.hostId === user.id ? 'Host' : 'Participant'}</div>
                   </div>
                   {isAudioMuted && <MicOff size={14} color="#ef4444" />}
@@ -450,10 +453,10 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
 
                 {/* Remote users */}
                 {participants.map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: '6px' }}>
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', marginBottom: '6px' }}>
                     <img src={p.avatar} alt={p.displayName} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.displayName}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.displayName}</div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{meetingDetails?.hostId === p.id ? 'Host' : 'Participant'}</div>
                     </div>
                   </div>
@@ -473,7 +476,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                     inMeetingMessages.map((m, i) => (
                       <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
-                          <span style={{ fontWeight: 700, color: m.sender?.id === user.id ? 'var(--accent-cyan)' : '#f8fafc' }}>
+                          <span style={{ fontWeight: 700, color: m.sender?.id === user.id ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
                             {m.sender?.displayName || 'User'}
                           </span>
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
@@ -481,7 +484,8 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                           </span>
                         </div>
                         <div style={{
-                          background: m.sender?.id === user.id ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                          background: m.sender?.id === user.id ? 'var(--bubble-mine-bg)' : 'var(--bubble-remote-bg)',
+                          border: m.sender?.id === user.id ? '1px solid var(--bubble-mine-border)' : '1px solid var(--border-subtle)',
                           padding: '8px 10px',
                           borderRadius: 'var(--radius-md)',
                           fontSize: '0.85rem',
@@ -513,72 +517,197 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
         )}
       </div>
 
-      {/* Bottom Meeting Controls Bar */}
+      {/* Bottom Meeting Controls Bar (Zoom Style Toolbar) */}
       <div style={{
-        padding: '16px 24px',
+        padding: '12px 24px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px',
-        background: 'rgba(15, 23, 42, 0.95)',
+        justifyContent: 'space-between',
+        background: 'var(--bg-secondary)',
         borderTop: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-md)',
         zIndex: 20
       }}>
-        {/* Mic Toggle */}
-        <button
-          onClick={toggleAudio}
-          className={`btn btn-icon ${isAudioMuted ? 'btn-danger' : 'btn-secondary'}`}
-          title={isAudioMuted ? 'Unmute Mic' : 'Mute Mic'}
-          style={{ width: '48px', height: '48px' }}
-        >
-          {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
-        </button>
+        {/* Left Zoom Section: Audio & Video Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Mic Toggle */}
+          <button
+            onClick={toggleAudio}
+            className={`btn ${isAudioMuted ? 'btn-danger' : 'btn-secondary'}`}
+            title={isAudioMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px'
+            }}
+          >
+            {isAudioMuted ? <MicOff size={19} /> : <Mic size={19} />}
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+              {isAudioMuted ? 'Unmute' : 'Mute'}
+            </span>
+          </button>
 
-        {/* Cam Toggle */}
-        <button
-          onClick={toggleVideo}
-          className={`btn btn-icon ${isVideoMuted ? 'btn-danger' : 'btn-secondary'}`}
-          title={isVideoMuted ? 'Start Camera' : 'Stop Camera'}
-          style={{ width: '48px', height: '48px' }}
-        >
-          {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
-        </button>
+          {/* Cam Toggle */}
+          <button
+            onClick={toggleVideo}
+            className={`btn ${isVideoMuted ? 'btn-danger' : 'btn-secondary'}`}
+            title={isVideoMuted ? 'Start Video' : 'Stop Video'}
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px'
+            }}
+          >
+            {isVideoMuted ? <VideoOff size={19} /> : <Video size={19} />}
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+              {isVideoMuted ? 'Start Video' : 'Stop Video'}
+            </span>
+          </button>
+        </div>
 
-        {/* Screen Share */}
-        <button
-          onClick={toggleScreenShare}
-          className={`btn btn-icon ${isScreenSharing ? 'btn-primary' : 'btn-secondary'}`}
-          title={isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
-          style={{ width: '48px', height: '48px' }}
-        >
-          <ScreenShare size={20} />
-        </button>
+        {/* Center Zoom Section: Collaboration & Features */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Security / Info */}
+          <button
+            onClick={handleCopyLink}
+            className="btn btn-secondary"
+            title="Meeting Security & Share Link"
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px'
+            }}
+          >
+            <Shield size={19} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Security</span>
+          </button>
 
-        {/* Meeting Recorder */}
-        <button
-          onClick={handleToggleRecording}
-          disabled={recordingLoading}
-          className={`btn ${recorderRef.current?.isRecording ? 'btn-danger recording-pulse' : 'btn-secondary'}`}
-          title={recorderRef.current?.isRecording ? 'Stop Recording & Save to Server' : 'Record Full Meeting'}
-          style={{ padding: '10px 16px' }}
-        >
-          <Circle size={16} fill={recorderRef.current?.isRecording ? '#ffffff' : '#ef4444'} color="#ef4444" />
-          <span>{recorderRef.current?.isRecording ? 'Stop Recording' : 'Record Meeting'}</span>
-        </button>
+          {/* Participants */}
+          <button
+            onClick={() => setActiveDrawer(activeDrawer === 'people' ? null : 'people')}
+            className={`btn ${activeDrawer === 'people' ? 'btn-primary' : 'btn-secondary'}`}
+            title="View Participants"
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px',
+              position: 'relative'
+            }}
+          >
+            <Users size={19} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Participants</span>
+            <span style={{
+              position: 'absolute',
+              top: '4px',
+              right: '8px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              padding: '1px 5px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--accent-cyan)',
+              color: '#ffffff'
+            }}>
+              {totalCount}
+            </span>
+          </button>
 
-        {/* Leave Meeting */}
-        <button
-          onClick={() => {
-            leaveMeeting();
-            if (onLeave) onLeave();
-          }}
-          className="btn btn-danger"
-          style={{ padding: '10px 20px', gap: '8px' }}
-          title="Leave Meeting Room"
-        >
-          <PhoneOff size={18} />
-          <span>Leave Room</span>
-        </button>
+          {/* In-Meeting Chat */}
+          <button
+            onClick={() => setActiveDrawer(activeDrawer === 'chat' ? null : 'chat')}
+            className={`btn ${activeDrawer === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
+            title="Open Chat"
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px'
+            }}
+          >
+            <MessageSquare size={19} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Chat</span>
+          </button>
+
+          {/* Screen Share (Prominent Zoom Green / Cyan Accent) */}
+          <button
+            onClick={toggleScreenShare}
+            className={`btn ${isScreenSharing ? 'btn-primary' : 'btn-secondary'}`}
+            title={isScreenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '78px',
+              color: isScreenSharing ? '#ffffff' : 'var(--status-online)',
+              borderColor: isScreenSharing ? 'transparent' : 'rgba(16, 185, 129, 0.4)'
+            }}
+          >
+            <ScreenShare size={19} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+              {isScreenSharing ? 'Sharing' : 'Share Screen'}
+            </span>
+          </button>
+
+          {/* Meeting Recorder */}
+          <button
+            onClick={handleToggleRecording}
+            disabled={recordingLoading}
+            className={`btn ${recorderRef.current?.isRecording ? 'btn-danger recording-pulse' : 'btn-secondary'}`}
+            title={recorderRef.current?.isRecording ? 'Stop Recording' : 'Record Full Meeting'}
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              minWidth: '68px'
+            }}
+          >
+            <Circle size={19} fill={recorderRef.current?.isRecording ? '#ffffff' : '#ef4444'} color="#ef4444" />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+              {recorderRef.current?.isRecording ? 'Stop Rec' : 'Record'}
+            </span>
+          </button>
+        </div>
+
+        {/* Right Zoom Section: End / Leave Meeting */}
+        <div>
+          <button
+            onClick={() => {
+              leaveMeeting();
+              if (onLeave) onLeave();
+            }}
+            className="btn btn-danger"
+            style={{
+              padding: '9px 18px',
+              fontWeight: 700,
+              fontSize: '0.86rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: 'var(--radius-md)'
+            }}
+            title="Leave Meeting Room"
+          >
+            <PhoneOff size={16} />
+            <span>End Meeting</span>
+          </button>
+        </div>
       </div>
     </div>
   );

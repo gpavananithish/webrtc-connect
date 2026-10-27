@@ -13,6 +13,7 @@ import MeetingLobby from './components/MeetingLobby';
 import MeetingRoom from './components/MeetingRoom';
 import RecordingsView from './components/RecordingsView';
 import SettingsView from './components/SettingsView';
+import PreJoinLobby from './components/PreJoinLobby';
 import { useOneOnOneCall } from './hooks/useOneOnOneCall';
 import { useMeshMeeting } from './hooks/useMeshMeeting';
 
@@ -24,6 +25,7 @@ function MainApplication() {
   const [selectedChatUserId, setSelectedChatUserId] = useState(null);
   const [activeMeetingCode, setActiveMeetingCode] = useState(null);
   const [activeMeetingPassword, setActiveMeetingPassword] = useState(null);
+  const [preJoinMeetingCode, setPreJoinMeetingCode] = useState(null);
 
   // One-on-one call hook
   const callHook = useOneOnOneCall();
@@ -45,10 +47,8 @@ function MainApplication() {
         // Clean URL to prevent re-triggering on reload
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
-        // Direct join
-        setActiveMeetingCode(cleanCode);
-        setActiveMeetingPassword(null);
-        meshMeeting.joinMeeting(cleanCode, user, null);
+        // Open PreJoinLobby so user checks name and camera/mic before entering
+        setPreJoinMeetingCode(cleanCode);
       }
     }
   }, [isAuthenticated, user]);
@@ -81,11 +81,25 @@ function MainApplication() {
     callHook.answerCall(callData);
   };
 
-  // Launch group meeting
+  // Launch group meeting from standard lobby
   const handleStartMeeting = (code, password) => {
+    // Direct from lobby or open prejoin
+    setPreJoinMeetingCode(code);
+    setActiveMeetingPassword(password);
+  };
+
+  // Confirm join from PreJoinLobby
+  const handlePreJoinConfirm = ({ code, password, displayName, audioEnabled, videoEnabled }) => {
     setActiveMeetingCode(code);
     setActiveMeetingPassword(password);
-    meshMeeting.joinMeeting(code, user, password);
+    setPreJoinMeetingCode(null);
+
+    const customUser = {
+      ...user,
+      displayName: displayName || user.displayName
+    };
+
+    meshMeeting.joinMeeting(code, customUser, password, { audioEnabled, videoEnabled });
   };
 
   // Switch to chat with user
@@ -143,6 +157,19 @@ function MainApplication() {
           </>
         )}
       </main>
+
+      {/* Pre-Join Meeting Device & Name Check (Zoom / Google Meet style) */}
+      {preJoinMeetingCode && !meshMeeting.inMeeting && (
+        <PreJoinLobby
+          initialCode={preJoinMeetingCode}
+          initialPassword={activeMeetingPassword || ''}
+          onJoin={handlePreJoinConfirm}
+          onCancel={() => {
+            setPreJoinMeetingCode(null);
+            setActiveMeetingPassword(null);
+          }}
+        />
+      )}
 
       {/* Incoming Call Ringing Modal */}
       <IncomingCallModal onAcceptCall={handleAcceptIncomingCall} />

@@ -146,7 +146,7 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
   }, [meetingCode, sendSignaling, setupAudioAnalyzer]);
 
   // Join meeting room
-  const joinMeeting = useCallback(async (code, userInfo, password = null) => {
+  const joinMeeting = useCallback(async (code, userInfo, password = null, initialMediaOptions = { audioEnabled: true, videoEnabled: true }) => {
     try {
       // Validate with backend first
       const valRes = await api.validateMeeting(code, password);
@@ -172,13 +172,39 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
         }
       }
 
+      // Apply initial audio & video toggle states from pre-join lobby
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack && initialMediaOptions.audioEnabled === false) {
+        audioTrack.enabled = false;
+        setIsAudioMuted(true);
+      } else {
+        setIsAudioMuted(false);
+      }
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack && initialMediaOptions.videoEnabled === false) {
+        videoTrack.enabled = false;
+        setIsVideoMuted(true);
+      } else {
+        setIsVideoMuted(false);
+      }
+
       setLocalStream(stream);
       setupAudioAnalyzer(user.id, stream);
 
-      // Send join signal to room
+      // Send join signal to room with customized user display name if provided
+      const finalUserInfo = userInfo ? { ...user, ...userInfo } : user;
       sendSignaling('join-meeting', {
         meetingCode: code,
-        userInfo: userInfo || user
+        userInfo: finalUserInfo
+      });
+
+      // Send initial track state
+      sendSignaling('meeting-track-state', {
+        meetingCode: code,
+        audioMuted: initialMediaOptions.audioEnabled === false,
+        videoMuted: initialMediaOptions.videoEnabled === false,
+        isScreenSharing: false
       });
 
       setInMeeting(true);
