@@ -5,7 +5,8 @@ import { MeetingRecorder } from '../services/recorderService';
 import { api } from '../services/api';
 import { 
   Mic, MicOff, Video, VideoOff, ScreenShare, PhoneOff, 
-  Circle, Users, MessageSquare, Copy, Check, Send, X, Shield, Link2, Pin 
+  Circle, Users, MessageSquare, Copy, Check, Send, X, Shield, Link2, Pin,
+  Lock, ChevronDown
 } from 'lucide-react';
 
 export default function MeetingRoom({ meshMeeting, onLeave }) {
@@ -38,6 +39,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
   const [meetingDuration, setMeetingDuration] = useState(0);
   const [activeDrawer, setActiveDrawer] = useState(null); // 'chat' | 'people' | null
   const [chatInput, setChatInput] = useState('');
+  const [chatRecipient, setChatRecipient] = useState('everyone'); // 'everyone' | userId
   const [recordingLoading, setRecordingLoading] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
 
@@ -156,7 +158,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
   const handleSendChat = (e) => {
     e.preventDefault();
     if (chatInput.trim()) {
-      sendMeetingChat(chatInput);
+      sendMeetingChat(chatInput, chatRecipient);
       setChatInput('');
     }
   };
@@ -309,13 +311,21 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
           <div style={{
             flex: 1,
             display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
+            gap: '16px',
             padding: '16px',
             overflow: 'hidden'
           }}>
-            {/* Main Stage (Large View) */}
-            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+            {/* Main Stage (Large View with dark backdrop for maximum screen clarity) */}
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              position: 'relative',
+              borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden',
+              background: '#000000',
+              border: '1px solid var(--border-medium)',
+              boxShadow: 'var(--shadow-md)'
+            }}>
               {pinnedId === 'local' ? (
                 <ParticipantTile
                   user={user}
@@ -349,18 +359,19 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               )}
             </div>
 
-            {/* Bottom Filmstrip (Thumbnail strip of other participants) */}
+            {/* Right Side Filmstrip (Zoom / Google Meet Style for Screen Share view) */}
             <div style={{
-              height: '140px',
+              width: '240px',
               display: 'flex',
-              gap: '10px',
-              overflowX: 'auto',
+              flexDirection: 'column',
+              gap: '12px',
+              overflowY: 'auto',
               flexShrink: 0,
-              paddingBottom: '4px'
+              paddingRight: '4px'
             }}>
               {/* Local User in thumbnail strip if not pinned */}
               {pinnedId !== 'local' && (
-                <div style={{ width: '200px', height: '100%', flexShrink: 0 }}>
+                <div style={{ width: '100%', height: '145px', flexShrink: 0 }}>
                   <ParticipantTile
                     user={user}
                     stream={localStream}
@@ -379,7 +390,7 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               {participants.filter(p => p.id !== pinnedId).map((p) => {
                 const pState = participantStates[p.id] || {};
                 return (
-                  <div key={p.id} style={{ width: '200px', height: '100%', flexShrink: 0 }}>
+                  <div key={p.id} style={{ width: '100%', height: '145px', flexShrink: 0 }}>
                     <ParticipantTile
                       user={p}
                       stream={remoteStreams[p.id]}
@@ -497,18 +508,19 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
               </div>
             )}
 
-            {/* Chat View (Zoom In-Meeting Chat Experience) */}
+            {/* Chat View (Zoom In-Meeting Chat Experience with Personal 1-on-1 Support) */}
             {activeDrawer === 'chat' && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div ref={chatScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {inMeetingMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '36px', padding: '0 16px' }}>
                       <MessageSquare size={32} style={{ opacity: 0.35, marginBottom: '8px' }} />
-                      <p>Messages sent here are visible to everyone in the meeting.</p>
+                      <p>Send messages to everyone or choose a participant for private chat.</p>
                     </div>
                   ) : (
                     inMeetingMessages.map((m, i) => {
                       const isMe = m.sender?.id === user.id || m.sender?.username === user.username;
+                      const isPrivate = !!m.isPrivate;
                       return (
                         <div key={i} style={{
                           display: 'flex',
@@ -516,14 +528,29 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                           alignItems: isMe ? 'flex-end' : 'flex-start',
                           gap: '3px'
                         }}>
-                          {/* Sender name & timestamp header */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', padding: '0 4px' }}>
+                          {/* Sender name, recipient badge & timestamp */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', padding: '0 4px', flexWrap: 'wrap' }}>
                             <span style={{
                               fontWeight: 700,
                               color: isMe ? 'var(--accent-cyan)' : 'var(--text-secondary)'
                             }}>
                               {isMe ? 'You' : (m.sender?.displayName || 'User')}
                             </span>
+
+                            {isPrivate && (
+                              <span style={{
+                                padding: '1px 6px',
+                                borderRadius: 'var(--radius-full)',
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                border: '1px solid rgba(239, 68, 68, 0.3)'
+                              }}>
+                                Direct to {isMe ? (m.recipientUser?.displayName || 'User') : 'You'}
+                              </span>
+                            )}
+
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
                               {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -534,9 +561,11 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                             maxWidth: '85%',
                             padding: '9px 12px',
                             borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                            background: isMe ? 'var(--accent-gradient)' : 'var(--bg-secondary)',
+                            background: isMe 
+                              ? (isPrivate ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)' : 'var(--accent-gradient)')
+                              : (isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)'),
                             color: isMe ? '#ffffff' : 'var(--text-primary)',
-                            border: isMe ? 'none' : '1px solid var(--border-subtle)',
+                            border: isMe ? 'none' : (isPrivate ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-subtle)'),
                             boxShadow: 'var(--shadow-sm)',
                             fontSize: '0.86rem',
                             lineHeight: 1.45,
@@ -550,18 +579,50 @@ export default function MeetingRoom({ meshMeeting, onLeave }) {
                   )}
                 </div>
 
-                <form onSubmit={handleSendChat} style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', background: 'var(--bg-secondary)' }}>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Type message to everyone..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    style={{ padding: '9px 12px', fontSize: '0.86rem', color: 'var(--text-primary)', flex: 1 }}
-                  />
-                  <button type="submit" className="btn btn-primary" style={{ padding: '9px 14px', color: '#ffffff' }}>
-                    <Send size={16} color="#ffffff" />
-                  </button>
+                {/* Zoom-Style Recipient Selector & Message Input Form */}
+                <form onSubmit={handleSendChat} style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--bg-secondary)' }}>
+                  {/* Recipient Dropdown (Everyone vs Specific Participant) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Send to:
+                    </span>
+                    <select
+                      value={chatRecipient}
+                      onChange={(e) => setChatRecipient(e.target.value)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--bg-card)',
+                        color: chatRecipient === 'everyone' ? 'var(--accent-cyan)' : '#ef4444',
+                        border: '1px solid var(--border-medium)',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="everyone">Everyone (Meeting)</option>
+                      {participants.map(p => (
+                        <option key={p.id} value={p.id}>
+                          Direct: {p.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder={chatRecipient === 'everyone' ? "Type message to everyone..." : "Type private message..."}
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      style={{ padding: '9px 12px', fontSize: '0.86rem', color: 'var(--text-primary)', flex: 1 }}
+                    />
+                    <button type="submit" className="btn btn-primary" style={{ padding: '9px 14px', color: '#ffffff' }}>
+                      <Send size={16} color="#ffffff" />
+                    </button>
+                  </div>
                 </form>
               </div>
             )}

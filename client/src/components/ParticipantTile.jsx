@@ -61,7 +61,10 @@ export default function ParticipantTile({
           style={{
             width: '100%',
             height: '100%',
-            objectFit: isScreenSharing ? 'contain' : 'cover',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: isScreenSharing ? 'contain' : (isPinned ? 'contain' : 'cover'),
+            background: '#000000',
             display: hasVideo ? 'block' : 'none',
             transform: isLocal && !isScreenSharing ? 'scaleX(-1)' : 'none'
           }}

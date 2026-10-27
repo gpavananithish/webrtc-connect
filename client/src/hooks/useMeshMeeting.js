@@ -158,9 +158,16 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
       const savedCam = localStorage.getItem('connect_preferred_cam');
 
       try {
+        const videoConstraints = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 1.7777777778 }
+        };
+        if (savedCam) videoConstraints.deviceId = { ideal: savedCam };
+
         stream = await navigator.mediaDevices.getUserMedia({
           audio: savedMic ? { deviceId: { ideal: savedMic } } : true,
-          video: savedCam ? { deviceId: { ideal: savedCam } } : true
+          video: videoConstraints
         });
       } catch (e) {
         console.warn('Preferred media constraints failed, trying basic getUserMedia:', e);
@@ -374,12 +381,13 @@ export function useMeshMeeting(meetingCode, onMeetingEnded) {
     });
   }, [meetingCode, sendSignaling]);
 
-  // Send in-meeting chat message
-  const sendMeetingChat = useCallback((text) => {
+  // Send in-meeting chat message (Supports 'everyone' or specific recipient for direct personal chat)
+  const sendMeetingChat = useCallback((text, recipientUserId = 'everyone') => {
     if (!text.trim()) return;
     sendSignaling('meeting-chat-message', {
       meetingCode,
-      messageText: text.trim()
+      messageText: text.trim(),
+      recipientUserId: recipientUserId || 'everyone'
     });
   }, [meetingCode, sendSignaling]);
 

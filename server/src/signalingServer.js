@@ -423,17 +423,34 @@ function setupSignalingServer(httpServer) {
 
         case 'meeting-chat-message': {
           if (!currentSocketUser) return;
-          const { meetingCode, messageText } = payload;
+          const { meetingCode, messageText, recipientUserId } = payload;
           const code = meetingCode.trim().toLowerCase();
           const room = meetingRooms.get(code);
           if (room) {
+            const isPrivate = !!recipientUserId && recipientUserId !== 'everyone';
+            const recipientUser = isPrivate && room.has(recipientUserId) ? room.get(recipientUserId).user : null;
+
             const chatPayload = {
               sender: currentSocketUser.user,
+              recipientUserId: isPrivate ? recipientUserId : null,
+              recipientUser: recipientUser,
+              isPrivate,
               text: messageText,
               timestamp: new Date().toISOString()
             };
-            for (const [pId, pData] of room.entries()) {
-              send(pData.ws, 'meeting-chat-message', chatPayload);
+
+            if (isPrivate) {
+              // Send only to recipient and sender
+              if (room.has(recipientUserId)) {
+                send(room.get(recipientUserId).ws, 'meeting-chat-message', chatPayload);
+              }
+              // Echo back to sender
+              send(ws, 'meeting-chat-message', chatPayload);
+            } else {
+              // Broadcast to everyone in room
+              for (const [pId, pData] of room.entries()) {
+                send(pData.ws, 'meeting-chat-message', chatPayload);
+              }
             }
           }
           break;

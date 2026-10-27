@@ -38,10 +38,16 @@ export default function PreJoinLobby({
         setHasPermissionError(false);
         const savedMic = localStorage.getItem('connect_preferred_mic');
         const savedCam = localStorage.getItem('connect_preferred_cam');
+        const videoConstraints = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 1.7777777778 }
+        };
+        if (savedCam) videoConstraints.deviceId = { ideal: savedCam };
 
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: savedMic ? { deviceId: { ideal: savedMic } } : true,
-          video: savedCam ? { deviceId: { ideal: savedCam } } : true
+          video: videoConstraints
         });
 
         if (!active) {
